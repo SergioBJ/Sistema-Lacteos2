@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block titulo %}Resumen{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Resumen del día</h1>
+  <p class="sub">Lo que pasó hoy en la planta y lo que necesita tu atención.</p>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="kn">{{ kpi.movimientos }}</div><div class="kl">movimientos hoy</div></div>
+  <div class="kpi"><div class="kn" {% if kpi.no_paso %}style="color: #951B10"{% endif %}>{{ kpi.no_paso }}</div><div class="kl">no pasaron hoy</div></div>
+  <div class="kpi"><div class="kn">{{ kpi.llegadas }}</div><div class="kl">llegadas de material hoy</div></div>
+  <div class="kpi"><div class="kn">{{ kpi.en_curso }}</div><div class="kl">órdenes en curso</div></div>
+  <div class="kpi"><div class="kn">{{ kpi.despachos }}</div><div class="kl">unidades despachadas hoy</div></div>
+</div>
+
+{% if alertas %}
+<section class="card">
+  <h2>Necesita tu atención</h2>
+  {% for tono, texto in alertas %}<div class="banner {{ tono }}">{{ texto }}</div>{% endfor %}
+</section>
+{% endif %}
+
+<section class="card">
+  <div class="tabs">
+    <a class="tab{% if pestana == 'materiales' %} on{% endif %}" href="?tab=materiales">Materiales</a>
+    <a class="tab{% if pestana == 'producto' %} on{% endif %}" href="?tab=producto">Producto terminado</a>
+    <a class="tab{% if pestana == 'vencer' %} on{% endif %}" href="?tab=vencer">Productos por vencerse{% if por_vencer %} <span class="pill wa" style="padding: 1px 8px">{{ por_vencer|length }}</span>{% endif %}</a>
+  </div>
+
+  {% if pestana == 'producto' %}
+    <table>
+      <thead><tr><th>Producto</th><th>Código</th><th>En bodega</th><th>Stock mínimo</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for x in productos %}
+        <tr><td>{{ x.t }}</td><td>{{ x.t.codigo }}</td><td><b>{{ x.unidades }}</b> und</td><td>{{ x.t.stock_minimo }} und</td>
+          <td>{% if x.bajo %}<span class="pill wa">Bajo el mínimo</span>{% else %}<span class="pill ok">Bien</span>{% endif %}</td></tr>
+      {% empty %}<tr><td colspan="5" class="muted">No hay productos.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  {% elif pestana == 'vencer' %}
+    <p class="help" style="margin: 0">Lotes con saldo que vencen en los próximos {{ dias_alerta }} días.</p>
+    <table>
+      <thead><tr><th>Producto o material</th><th>Lote</th><th>Cantidad</th><th>Vence</th><th>Faltan</th><th>Qué hacer</th></tr></thead>
+      <tbody>
+      {% for f in por_vencer %}
+        <tr><td><b>{{ f.nombre }}</b><div class="help">{{ f.tipo }}{% if f.ubicacion %} · {{ f.ubicacion }}{% endif %}</div></td>
+          <td>{{ f.lote }}</td><td>{{ f.cantidad }}</td><td>{{ f.vence|date:"d/m/Y" }}</td>
+          <td><span class="pill {% if f.dias <= 3 %}no{% elif f.dias <= 7 %}wa{% else %}ne{% endif %}">{% if f.dias < 0 %}Vencido{% else %}{{ f.dias }} día{{ f.dias|pluralize }}{% endif %}</span></td>
+          <td>{{ f.accion }}</td></tr>
+      {% empty %}<tr><td colspan="6" class="muted">Nada vence en los próximos {{ dias_alerta }} días.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <table>
+      <thead><tr><th>Material</th><th>Tipo</th><th>En inventario</th><th>Stock mínimo</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for x in materiales %}
+        <tr><td><b>{{ x.m.nombre }}</b><div class="help">{{ x.m.codigo }}</div></td><td>{{ x.m.get_tipo_display }}</td>
+          <td><b>{{ x.stock|floatformat:"-2" }}</b> {{ x.m.unidad }}</td><td>{{ x.m.stock_minimo|floatformat:"-2" }} {{ x.m.unidad }}</td>
+          <td>{% if x.bajo %}<span class="pill wa">Bajo el mínimo</span>{% else %}<span class="pill ok">Bien</span>{% endif %}</td></tr>
+      {% empty %}<tr><td colspan="5" class="muted">No hay materiales.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap">
+    <h2>Últimos movimientos</h2><a href="{% url 'gerente_historial' %}" class="help">Ver todo el historial →</a>
+  </div>
+  {% for m in ultimos %}
+    <div class="item"><div><div class="it" style="font-weight: 500"><b>{{ m.usuario.get_full_name|default:m.usuario.username }}</b> {{ m.accion }}</div>
+      <div class="id">{{ m.fecha|date:"d/m H:i" }} · {{ m.get_etapa_display }}{% if m.motivo and not m.paso %} · Motivo: {{ m.motivo }}{% endif %}</div></div>
+      {% if m.paso %}<span class="pill ok">Pasó</span>{% else %}<span class="pill no">No pasó</span>{% endif %}</div>
+  {% empty %}<p class="muted" style="margin: 0">Todavía no hay movimientos.</p>{% endfor %}
+</section>
+{% endblock %}

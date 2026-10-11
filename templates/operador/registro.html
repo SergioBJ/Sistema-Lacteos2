@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block titulo %}Registrar producción{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Registrar producción</h1>
+  <p class="sub">4 pasos cortos. Al final se envía al Jefe de Producción para su revisión.</p>
+</div>
+
+{% if not orden %}
+  <section class="card">
+    {% if pendientes %}
+      <h2>¿Qué orden vas a registrar?</h2>
+      {% for o in pendientes %}
+        <div class="item"><div class="it">{{ o.codigo }} · {{ o.cantidad }} × {{ o.tamano }}</div>
+          <a class="btn" href="?orden={{ o.pk }}" style="background: #1D5A9E; display: inline-flex; align-items: center; text-decoration: none">Registrar</a></div>
+      {% endfor %}
+    {% else %}
+      <p class="muted" style="margin: 0">No tienes órdenes en producción para registrar. Cuando el Almacenista te entregue materiales, aparecerán aquí.</p>
+    {% endif %}
+  </section>
+{% else %}
+  <section class="card" style="gap: 6px">
+    <h2 style="font-size: 20px">{{ orden.codigo }} · {{ orden.cantidad }} × {{ orden.tamano }}</h2>
+    <p class="sdesc">Pedido: {{ orden.cantidad }} unidades</p>
+  </section>
+
+  {% if devuelta %}
+    <div class="banner wa"><b>El Jefe te devolvió esta orden.</b> {{ devuelta.tipo_novedad }}{% if devuelta.motivo %}: {{ devuelta.motivo }}{% endif %}. Corrige y vuelve a enviar.</div>
+  {% endif %}
+  {% if errores %}<div class="banner no">{% for e in errores %}{{ e }}<br>{% endfor %}</div>{% endif %}
+
+  <form method="post" style="display: flex; flex-direction: column; gap: 22px" novalidate>
+    {% csrf_token %}
+    <section class="card">
+      <div class="stephead"><div class="num" style="background: #1D5A9E">1</div>
+        <div><h2>Limpieza</h2><p class="sdesc">Antes de empezar, el equipo debe quedar limpio y desinfectado.</p></div></div>
+      <label class="chk"><input type="checkbox" name="limpieza" value="1" {% if datos.limpieza == "1" or datos.inicio %}checked{% endif %}> <span>Hice la limpieza y desinfección del equipo</span></label>
+    </section>
+
+    <section class="card">
+      <div class="stephead"><div class="num" style="background: #1D5A9E">2</div>
+        <div><h2>Parámetros del proceso</h2><p class="sdesc">Escribe lo que marcan los equipos. El sistema dice si está en rango.</p></div></div>
+      <div class="vrows">
+        {% for p in parametros %}
+        <div class="vrow">
+          <div><div class="vname">{{ p.nombre }}</div><div class="vrange">Rango: {{ p.minimo }} a {{ p.maximo }} {{ p.unidad }}</div></div>
+          <div class="f" style="flex-direction: row; align-items: center; gap: 8px">
+            <input type="text" inputmode="decimal" name="proc_{{ p.i }}" value="{{ p.valor }}" data-min="{{ p.minimo }}" data-max="{{ p.maximo }}" aria-label="{{ p.nombre }}">
+            <span class="muted" style="min-width: 28px">{{ p.unidad }}</span>
+          </div>
+          <div class="resultado"><span class="pill ne">Sin valor</span></div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="stephead"><div class="num" style="background: #1D5A9E">3</div>
+        <div><h2>Resultado</h2></div></div>
+      <div class="g3">
+        <div class="f"><label class="lab" for="inicio">Hora de inicio<span class="req"> · obligatorio</span></label>
+          <input type="datetime-local" id="inicio" name="inicio" value="{{ datos.inicio|default:'' }}"></div>
+        <div class="f"><label class="lab" for="fin">Hora de fin<span class="req"> · obligatorio</span></label>
+          <input type="datetime-local" id="fin" name="fin" value="{{ datos.fin|default:'' }}"></div>
+        <div class="f"><label class="lab" for="cantidad">Unidades producidas<span class="req"> · obligatorio</span></label>
+          <input type="number" min="0" id="cantidad" name="cantidad" value="{{ datos.cantidad|default:'' }}">
+          <div class="help">Pedido: {{ orden.cantidad }}. Si es menos, explica en Novedades.</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="stephead"><div class="num" style="background: #1D5A9E">4</div>
+        <div><h2>Novedades</h2><p class="sdesc">Algo que el Jefe deba saber: una falla, un retraso, producto dañado.</p></div></div>
+      <div class="f"><textarea name="novedades" rows="3" placeholder="Opcional si todo salió bien">{{ datos.novedades|default:'' }}</textarea></div>
+    </section>
+
+    <div class="btns">
+      <a class="btn sec" href="{% url 'operador_orden' %}" style="display: inline-flex; align-items: center; text-decoration: none">Cancelar</a>
+      <button class="btn" type="submit" style="background: #1D5A9E">Enviar al Jefe de Producción</button>
+    </div>
+  </form>
+
+  <script>
+  (function () {
+    const inputs = document.querySelectorAll("input[data-min]");
+    function evaluar(inp) {
+      const caja = inp.closest(".vrow").querySelector(".resultado");
+      const v = Number((inp.value || "").trim().replace(",", "."));
+      if (!inp.value.trim() || isNaN(v)) { caja.innerHTML = '<span class="pill ne">Sin valor</span>'; inp.classList.remove("mal"); return; }
+      const ok = v >= Number(inp.dataset.min) && v <= Number(inp.dataset.max);
+      caja.innerHTML = ok ? '<span class="pill ok">En rango</span>' : '<span class="pill no">Fuera de rango</span>';
+      inp.classList.toggle("mal", !ok);
+    }
+    inputs.forEach(function (i) { i.addEventListener("input", function () { evaluar(i); }); evaluar(i); });
+  })();
+  </script>
+{% endif %}
+{% endblock %}

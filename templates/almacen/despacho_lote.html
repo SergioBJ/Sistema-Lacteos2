@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block titulo %}Lote {{ lote.codigo }}{% endblock %}
+{% block contenido %}
+<div>
+  <a href="{% url 'almacen_despacho' %}" class="help">← Volver a bodega</a>
+  <h1 style="margin-top: 6px">Lote {{ lote.codigo }}</h1>
+  <p class="sub">{{ lote.tamano }} · quedan <b>{{ saldo }}</b> de {{ lote.cantidad }} · vence {{ lote.vencimiento|date:"d/m/Y" }} · {{ lote.ubicacion|default:"sin ubicación" }}</p>
+</div>
+
+{% if errores %}<div class="banner no">{% for e in errores %}{{ e }}<br>{% endfor %}</div>{% endif %}
+
+<form method="post">
+  {% csrf_token %}<input type="hidden" name="accion" value="ubicar">
+  <section class="card">
+    <h2>Guardar en bodega</h2>
+    <div class="g2" style="align-items: end">
+      <div class="f"><label class="lab" for="ubicacion">Ubicación<span class="req"> · obligatorio</span></label>
+        <input type="text" id="ubicacion" name="ubicacion" maxlength="40" placeholder="Ejemplo: Estante B-3" value="{{ lote.ubicacion }}"></div>
+      <div class="btns" style="justify-content: flex-start"><button class="btn sec" type="submit">Guardar ubicación</button></div>
+    </div>
+  </section>
+</form>
+
+<form method="post" novalidate>
+  {% csrf_token %}<input type="hidden" name="accion" value="despachar">
+  <section class="card">
+    <h2>Despachar a un cliente</h2>
+    <div class="g2">
+      <div class="f"><label class="lab" for="cliente">Cliente<span class="req"> · obligatorio</span></label>
+        <select id="cliente" name="cliente"><option value="">Elige el cliente</option>
+          {% for c in clientes %}<option value="{{ c.pk }}" {% if datos.cliente == c.pk|stringformat:"s" or not datos and c.pk == cliente_orden %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select>
+        {% if cliente_orden %}<div class="help">Se eligió el cliente de la orden. Puedes cambiarlo.</div>{% endif %}</div>
+      <div class="f"><label class="lab" for="cantidad">Unidades que salen<span class="req"> · obligatorio</span></label>
+        <input type="number" id="cantidad" name="cantidad" min="1" max="{{ saldo }}" value="{{ datos.cantidad|default:saldo }}">
+        <div class="help">Máximo {{ saldo }}.</div></div>
+    </div>
+    <div class="g3">
+      <div class="f"><label class="lab" for="factura">Factura o remisión<span class="req"> · obligatorio</span></label>
+        <input type="text" id="factura" name="factura" maxlength="30" value="{{ datos.factura|default:'' }}"></div>
+      <div class="f"><label class="lab" for="vehiculo">Placa del vehículo<span class="req"> · opcional</span></label>
+        <input type="text" id="vehiculo" name="vehiculo" maxlength="15" value="{{ datos.vehiculo|default:'' }}"></div>
+      <div class="f"><label class="lab" for="conductor">Conductor<span class="req"> · opcional</span></label>
+        <input type="text" id="conductor" name="conductor" maxlength="100" value="{{ datos.conductor|default:'' }}"></div>
+    </div>
+    <div class="banner bl">Al despachar, las unidades se restan del lote y queda en el historial. Si quedan unidades, el lote sigue en bodega como "Despachado en parte".</div>
+    <div class="btns">
+      <a class="btn sec" href="{% url 'almacen_despacho' %}" style="display: inline-flex; align-items: center; text-decoration: none">Cancelar</a>
+      <button class="btn" type="submit" style="background: #1D6656">Registrar despacho</button>
+    </div>
+  </section>
+</form>
+{% endblock %}

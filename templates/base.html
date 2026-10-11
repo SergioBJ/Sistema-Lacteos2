@@ -1,0 +1,78 @@
+{% load static %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Sistema lácteo{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/estilos.css' %}?v={{ version_css }}">
+</head>
+<body>
+<div class="app">
+  <nav class="side" aria-label="Menú de {{ menu_rol.nombre }}">
+    <div class="brand">
+      <img src="{% static 'img/logo.jpg' %}" alt="Logo del sistema">
+      <span>Sistema de Control Estadístico y Trazabilidad en Procesos Lácteos</span>
+    </div>
+    <div class="brand2">Inventario de lácteos</div>
+
+    {# Solo en celular: fecha y hora en que la persona inició sesión #}
+    <div class="fecha-movil">
+      <span>Ingreso</span>
+      <b>{% if user.last_login %}{{ user.last_login|date:"j M Y · H:i" }}{% else %}{% now "j M Y" %}{% endif %}</b>
+    </div>
+
+    {# En computador estas opciones van en la columna; en celular se abren con el botón Menú #}
+    <div class="side-menu" id="menu-lateral">
+      <div class="menu-cabecera">
+        <b>Menú</b>
+        <button type="button" class="menu-cerrar" aria-label="Cerrar menú" onclick="document.body.classList.remove('menu-abierto')">✕</button>
+      </div>
+      <div class="rolecard" style="background: {{ menu_rol.color }}">
+        <span class="r1">Tu rol</span>
+        <span class="r2">{{ menu_rol.nombre }}</span>
+      </div>
+      {% for item in menu_items %}
+        {% if item.seccion %}
+          <div class="navsec">{{ item.seccion }}</div>
+        {% elif item.url %}
+          <a class="nav{% if item.activo %} on{% endif %}" href="{{ item.url }}"
+             {% if item.activo %}style="background: {{ menu_rol.color }}1A; color: {{ menu_rol.color }}"{% endif %}>{{ item.texto }}</a>
+        {% else %}
+          <span class="nav pronto" title="Esta pantalla todavía no está construida">{{ item.texto }} <small>· pronto</small></span>
+        {% endif %}
+      {% endfor %}
+      <form method="post" action="{% url 'logout' %}" class="salir-movil">
+        {% csrf_token %}
+        <button class="out" type="submit">Cerrar sesión</button>
+      </form>
+      <div class="sidefoot">{{ menu_rol.pie }}</div>
+    </div>
+  </nav>
+  <div class="menu-fondo" onclick="document.body.classList.remove('menu-abierto')"></div>
+
+  <div class="main">
+    <header class="top">
+      <div class="hello">Hola, <b>{{ user.first_name|default:user.username }}</b><span class="hello-fecha"> · {% now "j \d\e F \d\e Y" %}</span></div>
+      <form method="post" action="{% url 'logout' %}" class="salir-escritorio">
+        {% csrf_token %}
+        <button class="out" type="submit">Cerrar sesión</button>
+      </form>
+      <button class="menu-btn" type="button" aria-controls="menu-lateral"
+              onclick="document.body.classList.add('menu-abierto')">
+        <span>☰</span> Menú
+      </button>
+    </header>
+    <main class="content">
+      {% if messages %}
+      <div class="mensajes">
+        {% for m in messages %}<div class="banner {% if m.tags == 'error' %}no{% else %}ok{% endif %}">{{ m }}</div>{% endfor %}
+      </div>
+      {% endif %}
+      {% block contenido %}{% endblock %}
+    </main>
+  </div>
+</div>
+</body>
+</html>

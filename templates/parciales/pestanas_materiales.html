@@ -1,0 +1,5 @@
+<nav class="tabs tabs-tipo" aria-label="Tipo">
+  {% for p in pestanas %}
+    <a class="tab{% if p.on %} on{% endif %}" href="{{ p.url }}"{% if p.on %} aria-current="page"{% endif %}>{{ p.nombre }} ({{ p.n }})</a>
+  {% endfor %}
+</nav>

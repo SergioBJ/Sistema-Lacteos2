@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block titulo %}Gráficas{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Gráficas</h1>
+  <p class="sub">Cómo va la operación de un vistazo. Cada gráfica dice arriba, en una frase, lo más importante.</p>
+</div>
+
+<form method="get" class="filtros" style="grid-template-columns: repeat(2, minmax(0, 260px)) auto">
+  <div class="f"><label class="lab" for="periodo">Periodo</label>
+    <select id="periodo" name="periodo" onchange="this.form.submit()">{% for valor, texto in periodos %}<option value="{{ valor }}" {% if valor == periodo %}selected{% endif %}>{{ texto }}</option>{% endfor %}</select></div>
+  <div class="f"><label class="lab" for="rol">Rol</label>
+    <select id="rol" name="rol" onchange="this.form.submit()"><option value="">Todos</option>{% for clave, nombre in roles %}<option value="{{ clave }}" {% if rol == clave %}selected{% endif %}>{{ nombre }}</option>{% endfor %}</select></div>
+  <noscript><button class="btn" type="submit">Ver</button></noscript>
+</form>
+
+<div class="kpis" style="grid-template-columns: repeat(4, minmax(0, 1fr))">
+  {% for k in kpis %}
+  <div class="kpi"><div class="kn">{{ k.n }}</div><div class="kl">{{ k.texto }}</div>
+    {% if k.delta %}<div class="dl dl-{{ k.delta.tono }}">{{ k.delta.texto }}</div>{% endif %}</div>
+  {% endfor %}
+</div>
+
+<div class="g2 graf-grid">
+  {# 1. Entradas y salidas #}
+  <section class="card graf">
+    <div><h2>Entradas y salidas por semana</h2><p class="chs">{{ frase_sem }}</p></div>
+    <div class="leyenda"><span><i style="background: #2E4A78"></i>Entradas (llegadas de material)</span><span><i style="background: #7FA7D9"></i>Salidas (despachos a clientes)</span></div>
+    <div class="columnas">
+      {% for s in semanas %}
+      <div class="col" title="{{ s.nombre }}: {{ s.entradas }} llegadas, {{ s.salidas }} despachos">
+        <div class="barras">
+          <div class="b" style="height: {{ s.h_ent }}%; background: #2E4A78"><span>{{ s.entradas }}</span></div>
+          <div class="b" style="height: {{ s.h_sal }}%; background: #7FA7D9"><span>{{ s.salidas }}</span></div>
+        </div>
+        <div class="ax">{{ s.nombre }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <details><summary>Ver como tabla</summary>
+      <table><thead><tr><th>Semana</th><th>Del</th><th>Al</th><th>Entradas</th><th>Salidas</th></tr></thead>
+        <tbody>{% for s in semanas %}<tr><td>{{ s.nombre }}</td><td>{{ s.desde|date:"d/m" }}</td><td>{{ s.hasta|date:"d/m" }}</td><td>{{ s.entradas }}</td><td>{{ s.salidas }}</td></tr>{% endfor %}</tbody></table>
+    </details>
+  </section>
+
+  {# 2. Etapas #}
+  <section class="card graf">
+    <div><h2>¿En qué etapa se frenan las cosas?</h2><p class="chs">{{ frase_etapas }}</p></div>
+    <div class="leyenda"><span><i style="background: #1F8A4C"></i>Pasó</span><span><i style="background: #C8382F"></i>No pasó</span></div>
+    <div class="filas">
+      {% for e in etapas %}
+      <div class="fila" title="{{ e.nombre }}: {{ e.si }} pasaron, {{ e.no }} no pasaron">
+        <span class="fila-n">{{ e.nombre }}</span>
+        <div class="pista">{% if e.total %}<div style="width: 100%; display: flex"><div style="flex: {{ e.si }}; background: #1F8A4C"></div><div style="flex: {{ e.no }}; background: #C8382F"></div></div>{% endif %}</div>
+        <span class="fila-v"><b>{{ e.no }}</b> no</span>
+      </div>
+      {% endfor %}
+    </div>
+    <details><summary>Ver como tabla</summary>
+      <table><thead><tr><th>Etapa</th><th>Total</th><th>Pasó</th><th>No pasó</th><th>% no pasó</th></tr></thead>
+        <tbody>{% for e in etapas %}<tr><td>{{ e.nombre }}</td><td>{{ e.total }}</td><td>{{ e.si }}</td><td>{{ e.no }}</td><td>{{ e.pct_no }} %</td></tr>{% endfor %}</tbody></table>
+    </details>
+  </section>
+
+  {# 3. No conformidades #}
+  <section class="card graf">
+    <div><h2>¿Cuáles son las principales no conformidades?</h2><p class="chs">{{ frase_nc }}</p></div>
+    <div class="filas">
+      {% for c in no_conformidades %}
+      <div class="fila fila-nc">
+        <span class="fila-n">{{ c.nombre }}<small>Etapa: {{ c.etapa }}</small></span>
+        <div class="pista"><div style="width: {{ c.ancho }}%; background: #C8382F"></div></div>
+        <span class="fila-v"><b>{{ c.n }}</b></span>
+      </div>
+      {% empty %}
+      <p class="muted" style="margin: 0">Sin no conformidades en este periodo.</p>
+      {% endfor %}
+    </div>
+    {% if no_conformidades %}
+    <details><summary>Ver como tabla</summary>
+      <table><thead><tr><th>No conformidad</th><th>Etapa</th><th>Veces</th></tr></thead>
+        <tbody>{% for c in no_conformidades %}<tr><td>{{ c.nombre }}</td><td>{{ c.etapa }}</td><td>{{ c.n }}</td></tr>{% endfor %}</tbody></table>
+    </details>
+    {% endif %}
+  </section>
+
+  {# 4. Qué hay que comprar #}
+  <section class="card graf">
+    <div><h2>¿Qué hay que comprar?</h2><p class="chs">{{ frase_compras }} La línea negra es el <b>stock mínimo</b>.</p></div>
+    <div class="filas">
+      {% for x in compras %}
+      <div class="fila fila-nc" title="{{ x.m.nombre }}: {{ x.stock|floatformat:'-2' }} de mínimo {{ x.minimo|floatformat:'-2' }} {{ x.m.unidad }}">
+        <span class="fila-n">{{ x.m.nombre }}<small>{{ x.stock|floatformat:"-2" }} de {{ x.minimo|floatformat:"-2" }} {{ x.m.unidad }}</small></span>
+        <div class="pista" style="position: relative"><div style="width: {{ x.ancho|floatformat:'1' }}%; background: {% if x.bajo %}#D98200{% else %}#2E4A78{% endif %}"></div>
+          <span class="minimo" style="left: {{ x.linea|floatformat:'1' }}%"></span></div>
+        <span class="fila-v">{% if x.bajo %}<span class="pill wa">Comprar</span>{% else %}<span class="pill ok">Bien</span>{% endif %}</span>
+      </div>
+      {% empty %}
+      <p class="muted" style="margin: 0">No hay materiales con stock mínimo definido.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="sys"><span>🔒</span><div><b>Lo completa el sistema:</b> las gráficas se arman solas con el historial. Pasa el mouse sobre una barra para ver el detalle.</div></div>
+{% endblock %}

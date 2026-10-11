@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titulo %}Liberar lote{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Liberar lote</h1>
+  <p class="sub">Lotes de producto terminado que el Jefe de Producción aprobó. Analízalos antes de que salgan a bodega.</p>
+</div>
+<section class="card">
+  <h2>Por liberar ({{ lotes|length }})</h2>
+  {% for lote in lotes %}
+    <div class="item">
+      <div>
+        <div class="it">{{ lote.codigo }} · {{ lote.cantidad }} × {{ lote.tamano }}</div>
+        <div class="id">Producido el {{ lote.fecha_produccion|date:"d/m/Y" }} · orden {{ lote.orden.codigo }}</div>
+      </div>
+      <a class="btn" href="{% url 'calidad_liberacion_lote' lote.pk %}" style="background: #5A3D8A; display: inline-flex; align-items: center; text-decoration: none">Analizar</a>
+    </div>
+  {% empty %}
+    <p class="muted" style="margin: 0">No hay lotes esperando liberación.</p>
+  {% endfor %}
+</section>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block titulo %}Entregar a producción{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Entregar a producción</h1>
+  <p class="sub">Órdenes que el Jefe de Producción creó y esperan sus materiales. Las más antiguas van primero.</p>
+</div>
+
+<section class="card">
+  <h2>Órdenes esperando materiales ({{ pendientes|length }})</h2>
+  {% for o in pendientes %}
+    <div class="item">
+      <div>
+        <div class="it">{{ o.codigo }} · {{ o.cantidad }} × {{ o.tamano }}</div>
+        <div class="id">Operador: {{ o.operador.get_full_name|default:o.operador.username }}{% if o.cliente %} · cliente {{ o.cliente }}{% endif %} · creada {{ o.fecha|date:"d/m H:i" }}</div>
+      </div>
+      <a class="btn" href="{% url 'almacen_entrega_orden' o.pk %}" style="background: #1D6656; display: inline-flex; align-items: center; text-decoration: none">Ver materiales</a>
+    </div>
+  {% empty %}
+    <p class="muted" style="margin: 0">No hay órdenes esperando materiales.</p>
+  {% endfor %}
+</section>
+{% endblock %}

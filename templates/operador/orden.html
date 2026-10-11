@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block titulo %}Mi orden de hoy{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Mi orden de hoy</h1>
+  <p class="sub">Solo ves las órdenes que te asignaron.</p>
+</div>
+
+{% for o in en_curso %}
+<section class="card">
+  <div style="display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start">
+    <div>
+      <h2 style="font-size: 20px">{{ o.codigo }} · {{ o.cantidad }} × {{ o.tamano }}</h2>
+      <p class="sdesc">{% if o.cliente %}Cliente {{ o.cliente }} · {% endif %}creada {{ o.fecha|date:"d/m/Y H:i" }}</p>
+    </div>
+    <span class="pill bl">Materiales entregados · puedes empezar</span>
+  </div>
+  {% if o.entrega %}
+  <table>
+    <thead><tr><th>Material que recibiste</th><th>Cantidad</th><th>Lote</th></tr></thead>
+    <tbody>
+    {% for d in o.entrega.detalles.all %}
+      <tr><td>{{ d.llegada.material.nombre }}</td><td>{{ d.cantidad|floatformat:"-2" }} {{ d.llegada.material.unidad }}</td><td>{{ d.llegada.lote_proveedor }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  <div class="btns">
+    <a class="btn" href="{% url 'operador_registro' %}?orden={{ o.pk }}" style="background: #1D5A9E; display: inline-flex; align-items: center; text-decoration: none">Registrar producción</a>
+  </div>
+</section>
+{% empty %}
+<section class="card">
+  <p class="muted" style="margin: 0">No tienes órdenes en producción ahora.</p>
+</section>
+{% endfor %}
+
+{% if esperando %}
+<section class="card">
+  <h2>Esperando materiales del almacén</h2>
+  {% for o in esperando %}
+    <div class="item"><div><div class="it">{{ o.codigo }} · {{ o.cantidad }} × {{ o.tamano }}</div>
+      <div class="id">Todavía no puedes empezar: el Almacenista debe entregarte los materiales.</div></div>
+      <span class="pill wa">Esperando materiales</span></div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if enviadas %}
+<section class="card">
+  <h2>Lo que ya enviaste</h2>
+  {% for o in enviadas %}
+    <div class="item"><div><div class="it">{{ o.codigo }} · {{ o.tamano }}</div><div class="id">{{ o.fecha|date:"d/m/Y" }}</div></div>
+      <span class="pill {% if o.estado == 'APROBADA' %}ok{% elif o.estado == 'CON_NOVEDAD' %}no{% else %}bl{% endif %}">{{ o.get_estado_display }}</span></div>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

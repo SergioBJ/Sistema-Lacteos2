@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block titulo %}Mis órdenes{% endblock %}
+{% block contenido %}
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap">
+  <div>
+    <h1>Mis órdenes</h1>
+    <p class="sub">Arriba, lo que necesita tu atención. Abajo, el resto con su estado.</p>
+  </div>
+  <a class="btn" href="{% url 'jefe_nueva' %}" style="background: #8A4A10; display: inline-flex; align-items: center; text-decoration: none">+ Nueva orden</a>
+</div>
+
+<section class="card">
+  <h2>Necesitan tu atención ({{ atencion|length }})</h2>
+  {% for o in atencion %}
+    <div class="item">
+      <div>
+        <div class="it">{{ o.codigo }} · {{ o.cantidad }} × {{ o.tamano }}</div>
+        <div class="id">Operador: {{ o.operador.get_full_name|default:o.operador.username }}{% if o.cliente %} · cliente {{ o.cliente }}{% endif %} · {{ o.fecha|date:"d/m H:i" }}</div>
+        {% if o.motivo_detenida %}<div class="errmsg" style="margin-top: 4px">{{ o.motivo_detenida }}</div>{% endif %}
+      </div>
+      {% if o.estado == "DETENIDA" %}
+        <form method="post" action="{% url 'jefe_ordenes_reintentar' o.pk %}">
+          {% csrf_token %}
+          <button class="btn sec" type="submit">Revisar de nuevo si alcanza</button>
+        </form>
+      {% else %}
+        <a class="btn" href="{% url 'jefe_revisar_orden' o.pk %}" style="background: #8A4A10; display: inline-flex; align-items: center; text-decoration: none">Revisar producción</a>
+      {% endif %}
+    </div>
+  {% empty %}
+    <p class="muted" style="margin: 0">Nada pendiente por ahora.</p>
+  {% endfor %}
+</section>
+
+<section class="card">
+  <h2>Todas las órdenes</h2>
+  <table>
+    <thead><tr><th>Orden</th><th>Producto</th><th>Cantidad</th><th>Cliente</th><th>Operador</th><th>Fecha</th><th>Estado</th></tr></thead>
+    <tbody>
+    {% for o in resto %}
+      <tr>
+        <td><b>{{ o.codigo }}</b></td>
+        <td>{{ o.tamano }}</td>
+        <td>{{ o.cantidad }}</td>
+        <td>{{ o.cliente|default:"—" }}</td>
+        <td>{{ o.operador.get_full_name|default:o.operador.username }}</td>
+        <td>{{ o.fecha|date:"d/m/Y" }}</td>
+        <td><span class="pill {% if o.estado == 'APROBADA' %}ok{% elif o.estado == 'CON_NOVEDAD' %}no{% elif o.estado == 'EN_PRODUCCION' %}bl{% else %}ne{% endif %}">{{ o.get_estado_display }}</span></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7" class="muted">Todavía no hay órdenes.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

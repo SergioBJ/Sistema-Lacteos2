@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block titulo %}Entregar {{ orden.codigo }}{% endblock %}
+{% block contenido %}
+<div>
+  <a href="{% url 'almacen_entrega' %}" class="help">← Volver a las órdenes</a>
+  <h1 style="margin-top: 6px">Entregar materiales · {{ orden.codigo }}</h1>
+  <p class="sub">{{ orden.cantidad }} × {{ orden.tamano }} · operador {{ orden.operador.get_full_name|default:orden.operador.username }}</p>
+</div>
+
+<section class="card">
+  <h2>Qué entregar y de qué lote</h2>
+  <p class="help" style="margin: -8px 0 0">El sistema elige primero los lotes que vencen antes. Saca de la bodega exactamente esto.</p>
+  <table>
+    <thead><tr><th>Material</th><th>Cantidad</th><th>Sale del lote</th><th>Vence</th><th>Resultado</th></tr></thead>
+    <tbody>
+    {% for f in filas %}
+      {% for llegada, cantidad in f.plan %}
+        <tr>
+          {% if forloop.first %}<td rowspan="{{ f.plan|length }}"><b>{{ f.material.nombre }}</b><div class="help">Total: {{ f.necesita|floatformat:"-2" }} {{ f.material.unidad }}</div></td>{% endif %}
+          <td>{{ cantidad|floatformat:"-2" }} {{ f.material.unidad }}</td>
+          <td>{{ llegada.lote_proveedor }}<div class="help">{{ llegada.proveedor }}</div></td>
+          <td>{{ llegada.vencimiento|date:"d/m/Y" }}</td>
+          {% if forloop.first %}<td rowspan="{{ f.plan|length }}">{% if f.falta %}<span class="pill no">Falta {{ f.falta|floatformat:"-2" }} {{ f.material.unidad }}</span>{% else %}<span class="pill ok">Completo</span>{% endif %}</td>{% endif %}
+        </tr>
+      {% empty %}
+        <tr>
+          <td><b>{{ f.material.nombre }}</b><div class="help">Total: {{ f.necesita|floatformat:"-2" }} {{ f.material.unidad }}</div></td>
+          <td colspan="3" class="muted">No hay lotes aprobados con saldo</td>
+          <td><span class="pill no">Falta {{ f.falta|floatformat:"-2" }} {{ f.material.unidad }}</span></td>
+        </tr>
+      {% endfor %}
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% if faltantes %}
+  <div class="banner no"><b>No alcanza el material.</b> Si confirmas, la orden queda <b>Detenida</b> con lo que faltó y el Jefe de Producción lo verá en sus órdenes.</div>
+{% else %}
+  <div class="banner ok">Todo completo. Al confirmar, estas cantidades se descuentan del inventario y el operador puede empezar.</div>
+{% endif %}
+
+<form method="post" class="btns">
+  {% csrf_token %}
+  <a class="btn sec" href="{% url 'almacen_entrega' %}" style="display: inline-flex; align-items: center; text-decoration: none">Cancelar</a>
+  {% if faltantes %}
+    <button class="btn dan" type="submit">Marcar orden como detenida</button>
+  {% else %}
+    <button class="btn" type="submit" style="background: #1D6656">Confirmar entrega</button>
+  {% endif %}
+</form>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block titulo %}Sin permiso{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Esta pantalla no es de tu rol</h1>
+  <p class="sub">Cada rol solo ve sus propias tareas. Usa el menú de la izquierda.</p>
+</div>
+<div><a class="btn" href="{% url 'inicio' %}" style="display: inline-flex; align-items: center; text-decoration: none">Ir a mi inicio</a></div>
+{% endblock %}

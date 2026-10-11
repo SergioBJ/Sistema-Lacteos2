@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block titulo %}Nueva orden{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Nueva orden de producción</h1>
+  <p class="sub">Elige qué producir. El sistema calcula los materiales según la fórmula y te dice si alcanzan.</p>
+</div>
+
+<form method="post" style="display: flex; flex-direction: column; gap: 22px" novalidate>
+  {% csrf_token %}
+  <section class="card">
+    <div class="stephead"><div class="num" style="background: #8A4A10">1</div>
+      <div><h2>¿Qué se va a producir?</h2><p class="sdesc">Los tamaños sin empaque en la fórmula salen en gris y no se pueden elegir.</p></div>
+    </div>
+    <div class="g3">
+      {% include "parciales/campo.html" with campo=form.producto %}
+      {% include "parciales/campo.html" with campo=form.tamano %}
+      {% include "parciales/campo.html" with campo=form.cantidad %}
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="stephead"><div class="num" style="background: #8A4A10">2</div>
+      <div><h2>¿Para quién y quién la hace?</h2></div>
+    </div>
+    <div class="g2">
+      {% include "parciales/campo.html" with campo=form.cliente %}
+      {% include "parciales/campo.html" with campo=form.operador %}
+    </div>
+  </section>
+
+  {% for p in problemas %}<div class="banner no">{{ p }} <a href="{% url 'jefe_formulas' %}">Ir a Fórmulas →</a></div>{% endfor %}
+
+  {% if filas %}
+  <section class="card">
+    <div class="stephead"><div class="num" style="background: #8A4A10">3</div>
+      <div><h2>Materiales que necesita</h2><p class="sdesc">Disponible = inventario aprobado menos lo apartado para otras órdenes que esperan entrega.</p></div>
+    </div>
+    <table>
+      <thead><tr><th>Material</th><th>Necesita</th><th>Disponible</th><th>Resultado</th></tr></thead>
+      <tbody>
+      {% for f in filas %}
+        <tr>
+          <td><b>{{ f.material.nombre }}</b><div class="help">{{ f.material.get_tipo_display }}</div></td>
+          <td>{{ f.necesita|floatformat:"-2" }} {{ f.material.unidad }}</td>
+          <td>{{ f.disponible|floatformat:"-2" }} {{ f.material.unidad }}</td>
+          <td>{% if f.alcanza %}<span class="pill ok">Alcanza</span>{% else %}<span class="pill no">Falta</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if todo_alcanza %}
+      <div class="banner ok">Todo alcanza. Al crear la orden, el Almacenista verá que debe entregar estos materiales.</div>
+    {% else %}
+      <div class="banner wa">Hay materiales que no alcanzan. Si creas la orden igual, se guarda como <b>Detenida</b> con lo que faltó, y queda en el historial.</div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <div class="sys"><span>🔒</span><div><b>Lo completa el sistema:</b> N° de orden {{ proximo_codigo }} · fecha y hora · tu nombre.</div></div>
+
+  <div class="btns">
+    <button class="btn sec" type="submit" name="calcular" value="1">Calcular materiales</button>
+    {% if filas %}<button class="btn" type="submit" name="crear" value="1" style="background: #8A4A10">{% if todo_alcanza %}Crear orden{% else %}Crear orden como detenida{% endif %}</button>{% endif %}
+  </div>
+</form>
+
+{{ datos_tamanos|json_script:"datos-tamanos" }}
+<script>
+(function () {
+  const datos = JSON.parse(document.getElementById("datos-tamanos").textContent);
+  const producto = document.getElementById("id_producto");
+  const tamano = document.getElementById("id_tamano");
+  function filtrar() {
+    for (const op of tamano.options) {
+      if (!op.value) continue;
+      const d = datos[op.value];
+      op.hidden = !d || String(d.producto) !== producto.value;
+      op.disabled = !d || !d.con_empaque;
+      if (d && !d.con_empaque && !op.textContent.includes("sin empaque")) op.textContent += " (sin empaque en la fórmula)";
+    }
+    const actual = tamano.selectedOptions[0];
+    if (actual && (actual.hidden || actual.disabled)) tamano.value = "";
+  }
+  producto.addEventListener("change", filtrar);
+  filtrar();
+})();
+</script>
+{% endblock %}

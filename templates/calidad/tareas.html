@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block titulo %}Mis tareas · Calidad{% endblock %}
+{% block contenido %}
+<div>
+  <h1>¿Qué necesitas revisar hoy?</h1>
+  <p class="sub">Materiales que llegaron y lotes que esperan tu liberación.</p>
+</div>
+
+{% if sin_parametros %}
+<div class="banner wa"><b>{{ sin_parametros }} material{{ sin_parametros|pluralize:"es" }} o producto{{ sin_parametros|pluralize }} sin parámetros.</b>
+  No se pueden revisar hasta que definas su lista. <a href="{% url 'calidad_parametros' %}">Ir a Parámetros de calidad →</a></div>
+{% endif %}
+
+<section class="card">
+  <h2>Materiales por revisar ({{ pendientes|length }})</h2>
+  {% for l in pendientes %}
+    <div class="item">
+      <div>
+        <div class="it">{{ l.material.nombre }} · {{ l.cantidad|floatformat:"-2" }} {{ l.material.unidad }}</div>
+        <div class="id">{{ l.codigo }} · lote {{ l.lote_proveedor }} · {{ l.proveedor }} · llegó {{ l.fecha|date:"d/m H:i" }} · recibió {{ l.registrado_por.get_full_name|default:l.registrado_por.username }}</div>
+      </div>
+      {% if l.n_par %}
+        <a class="btn" href="{% url 'calidad_revision_detalle' l.pk %}" style="background: #5A3D8A; display: inline-flex; align-items: center; text-decoration: none">Revisar</a>
+      {% else %}
+        <a class="pill wa" href="{% url 'calidad_parametros' %}?material={{ l.material_id }}" style="text-decoration: none">Sin parámetros · definir primero</a>
+      {% endif %}
+    </div>
+  {% empty %}
+    <p class="muted" style="margin: 0">No hay materiales esperando revisión.</p>
+  {% endfor %}
+</section>
+
+<section class="card">
+  <h2>Lotes por liberar ({{ lotes|length }})</h2>
+  {% for lote in lotes %}
+    <div class="item">
+      <div>
+        <div class="it">{{ lote.codigo }} · {{ lote.tamano }}</div>
+        <div class="id">{{ lote.cantidad }} unidades · producido el {{ lote.fecha_produccion|date:"d/m/Y" }}</div>
+      </div>
+      <a class="btn" href="{% url 'calidad_liberacion_lote' lote.pk %}" style="background: #5A3D8A; display: inline-flex; align-items: center; text-decoration: none">Liberar</a>
+    </div>
+  {% empty %}
+    <p class="muted" style="margin: 0">No hay lotes esperando liberación.</p>
+  {% endfor %}
+</section>
+{% endblock %}

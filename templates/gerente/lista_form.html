@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block titulo %}{{ cfg.titulo }}{% endblock %}
+{% block contenido %}
+<div>
+  <h1>{{ cfg.titulo }}</h1>
+  <p class="sub">{{ cfg.sub }}</p>
+</div>
+
+
+<section class="card">
+  {% if pestanas %}{% include "parciales/pestanas_materiales.html" %}{% endif %}
+  <div style="display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap">
+    <form method="get" class="search">
+      {% if tipo_actual %}<input type="hidden" name="tipo" value="{{ tipo_actual }}">{% endif %}
+      <span class="buscar-caja"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <input type="text" name="q" value="{{ q }}" placeholder="{{ cfg.buscar_texto|default:'Buscar…' }}" aria-label="Buscar"></span>
+      <button class="btn sec" type="submit" style="min-height: 44px">Buscar</button>
+      {% if q %}<a href="{{ url_nuevo }}" class="help">Quitar búsqueda</a>{% endif %}
+    </form>
+    {% if objeto %}
+      <a class="btn" href="{{ url_nuevo }}?abrir=1#formulario" style="display: inline-flex; align-items: center; text-decoration: none">+ {{ cfg.nuevo }}</a>
+    {% else %}
+      <button class="btn" type="button" aria-expanded="{% if form.errors or request.GET.abrir %}true{% else %}false{% endif %}" aria-controls="formulario"
+              onclick="desplegar(this)">{% if form.errors or request.GET.abrir %}✕ Cerrar{% else %}+ {{ cfg.nuevo }}{% endif %}</button>
+    {% endif %}
+  </div>
+
+  <div class="panel-nuevo" id="formulario" data-texto="+ {{ cfg.nuevo }}" {% if not objeto and not form.errors and not request.GET.abrir %}hidden{% endif %}>
+  <h2>{% if objeto %}Editar · {{ objeto }}{% else %}{{ cfg.nuevo }}{% endif %}</h2>
+  {% if form.non_field_errors %}<div class="banner no">{% for e in form.non_field_errors %}{{ e }} {% endfor %}</div>{% endif %}
+  <form method="post" style="display: flex; flex-direction: column; gap: 18px">
+    {% csrf_token %}
+    <div class="g2">
+      {% for campo in form %}
+        {% if campo.widget_type == "checkboxselectmultiple" %}</div><div>{% include "parciales/campo.html" %}</div><div class="g2">
+        {% else %}{% include "parciales/campo.html" %}{% endif %}
+      {% endfor %}
+    </div>
+    <div class="btns">
+      {% if objeto %}<a class="btn sec" href="{{ url_nuevo }}" style="display: inline-flex; align-items: center; text-decoration: none">Cancelar</a>{% endif %}
+      <button class="btn" type="submit">{% if objeto %}Guardar cambios{% else %}Guardar{% endif %}</button>
+    </div>
+  </form>
+</div>
+  <table>
+    <thead>
+      <tr>{% for c in cfg.cabeceras %}<th>{{ c }}</th>{% endfor %}<th>Estado</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for fila in filas %}
+      <tr{% if fila.es_actual %} style="background: #F2F6FC"{% endif %}>
+        {% for celda in fila.celdas %}<td>{{ celda }}</td>{% endfor %}
+        <td>{% if fila.activo %}<span class="pill ok">Activo</span>{% else %}<span class="pill ne">Inactivo</span>{% endif %}</td>
+        <td>
+          <div class="acts">
+            <a class="lk" href="{{ fila.editar }}#formulario">Editar</a>
+            <form method="post" action="{{ fila.estado }}">
+              {% csrf_token %}
+              <button class="lk" type="submit">{% if fila.activo %}Desactivar{% else %}Activar{% endif %}</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="{{ cfg.cabeceras|length|add:2 }}" class="muted">Todavía no hay registros{% if q %} con «{{ q }}»{% endif %}.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+
+<script>
+function desplegar(boton) {
+  const panel = document.getElementById("formulario");
+  const abrir = panel.hidden;
+  panel.hidden = !abrir;
+  boton.setAttribute("aria-expanded", abrir);
+  boton.textContent = abrir ? "✕ Cerrar" : panel.dataset.texto;
+  if (abrir) { const campo = panel.querySelector("input, select, textarea"); if (campo) campo.focus(); }
+}
+</script>
+{% endblock %}

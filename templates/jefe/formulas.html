@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block titulo %}Fórmulas de productos{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Fórmulas de productos</h1>
+  <p class="sub">Con la fórmula, el sistema calcula los materiales de cada orden: kg totales × materia prima + unidades × empaque + limpieza fija.</p>
+</div>
+
+<div class="par-layout">
+  <section class="card par-lista">
+    <h2>Productos</h2>
+    {% for p in productos %}
+      <a class="par-item par-jefe{% if producto and producto.pk == p.pk %} on{% endif %}" href="?producto={{ p.pk }}">
+        <span>{{ p.tipo }}<br><small class="muted">{{ p.marca }}</small></span>
+      </a>
+    {% empty %}
+      <p class="muted">El Gerente todavía no ha creado productos.</p>
+    {% endfor %}
+  </section>
+
+  <div style="display: flex; flex-direction: column; gap: 22px; min-width: 0">
+  {% if not producto %}
+    <section class="card"><p class="muted" style="margin: 0">Elige un producto a la izquierda para ver y editar su fórmula.</p></section>
+  {% else %}
+    <h2 style="margin: 0; font-size: 20px">{{ producto }}</h2>
+
+    {# 1. Materia prima por kg #}
+    <section class="card">
+      <div class="stephead"><div class="num" style="background: #8A4A10">1</div>
+        <div><h2>Materia prima por cada 1 kg (o 1 L)</h2><p class="sdesc">Sirve para todos los tamaños de este producto.</p></div>
+      </div>
+      <table>
+        <thead><tr><th>Material</th><th>Cantidad por kg</th><th></th></tr></thead>
+        <tbody>
+        {% for f in materias %}
+          <tr><td>{{ f.material.nombre }}</td><td>{{ f.cantidad_por_kg|floatformat:"-4" }} {{ f.material.unidad }}</td>
+            <td><form method="post" action="{% url 'jefe_formulas_quitar' 'materia' f.pk %}">{% csrf_token %}<button class="lk" type="submit">Quitar</button></form></td></tr>
+        {% empty %}
+          <tr><td colspan="3"><span class="pill wa">Sin materia prima: no se pueden crear órdenes de este producto</span></td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <form method="post" class="fila-add">
+        {% csrf_token %}<input type="hidden" name="seccion" value="materia">
+        <div class="f"><select name="material" required><option value="">Elige la materia prima</option>{% for m in mat_materia %}<option value="{{ m.pk }}">{{ m.nombre }} ({{ m.unidad }})</option>{% endfor %}</select></div>
+        <div class="f"><input type="text" inputmode="decimal" name="cantidad" placeholder="Cantidad por kg" required></div>
+        <button class="btn sec" type="submit">Agregar o actualizar</button>
+      </form>
+    </section>
+
+    {# 2. Empaque por tamaño #}
+    <section class="card">
+      <div class="stephead"><div class="num" style="background: #8A4A10">2</div>
+        <div><h2>Empaque por tamaño</h2><p class="sdesc">Lo que lleva cada unidad. Un tamaño sin empaque no se puede pedir en una orden.</p></div>
+      </div>
+      {% for item in tamanos %}
+        <div style="border: 1px solid var(--borde); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap">
+            <b>{{ item.t.empaque }} {{ item.t.cantidad|floatformat:"-3" }} {{ item.t.unidad }}</b>
+            {% if item.filas %}<span class="pill ok">Con empaque</span>{% else %}<span class="pill wa">Sin empaque</span>{% endif %}
+          </div>
+          {% for f in item.filas %}
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px">
+              <span>{{ f.material.nombre }} · {{ f.cantidad_por_unidad|floatformat:"-3" }} {{ f.material.unidad }} por unidad</span>
+              <form method="post" action="{% url 'jefe_formulas_quitar' 'empaque' f.pk %}">{% csrf_token %}<button class="lk" type="submit">Quitar</button></form>
+            </div>
+          {% endfor %}
+          <form method="post" class="fila-add">
+            {% csrf_token %}<input type="hidden" name="seccion" value="empaque"><input type="hidden" name="tamano" value="{{ item.t.pk }}">
+            <div class="f"><select name="material" required><option value="">Elige el empaque</option>{% for m in mat_empaque %}<option value="{{ m.pk }}">{{ m.nombre }} ({{ m.unidad }})</option>{% endfor %}</select></div>
+            <div class="f"><input type="text" inputmode="decimal" name="cantidad" placeholder="Cantidad por unidad" required></div>
+            <button class="btn sec" type="submit">Agregar</button>
+          </form>
+        </div>
+      {% empty %}
+        <p class="muted" style="margin: 0">Este producto no tiene tamaños activos. El Gerente los crea en Materiales y productos.</p>
+      {% endfor %}
+    </section>
+
+    {# 3. Limpieza #}
+    <section class="card">
+      <div class="stephead"><div class="num" style="background: #8A4A10">3</div>
+        <div><h2>Limpieza fija por orden</h2><p class="sdesc">Desinfectante que se usa en cada orden, sin importar la cantidad.</p></div>
+      </div>
+      <table>
+        <thead><tr><th>Desinfectante</th><th>Cantidad por orden</th><th></th></tr></thead>
+        <tbody>
+        {% for f in limpiezas %}
+          <tr><td>{{ f.material.nombre }}</td><td>{{ f.cantidad_por_orden|floatformat:"-3" }} {{ f.material.unidad }}</td>
+            <td><form method="post" action="{% url 'jefe_formulas_quitar' 'limpieza' f.pk %}">{% csrf_token %}<button class="lk" type="submit">Quitar</button></form></td></tr>
+        {% empty %}
+          <tr><td colspan="3" class="muted">Sin limpieza definida.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <form method="post" class="fila-add">
+        {% csrf_token %}<input type="hidden" name="seccion" value="limpieza">
+        <div class="f"><select name="material" required><option value="">Elige el desinfectante</option>{% for m in mat_limpieza %}<option value="{{ m.pk }}">{{ m.nombre }} ({{ m.unidad }})</option>{% endfor %}</select></div>
+        <div class="f"><input type="text" inputmode="decimal" name="cantidad" placeholder="Cantidad por orden" required></div>
+        <button class="btn sec" type="submit">Agregar o actualizar</button>
+      </form>
+    </section>
+  {% endif %}
+  </div>
+</div>
+{% endblock %}

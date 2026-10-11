@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block titulo %}Liberar lote{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Liberar lote</h1>
+  <p class="sub">Escribe el valor medido de cada parámetro. El sistema te dice si está dentro o fuera del rango.</p>
+</div>
+
+<section class="card">
+  <div style="display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start">
+    <div>
+      <h2 style="font-size: 20px">Lote {{ lote.codigo }} · {{ lote.tamano }}</h2>
+      <p class="sdesc">{{ lote.cantidad }} unidades · producido el {{ lote.fecha_produccion|date:"d/m/Y" }} · vence {{ lote.vencimiento|date:"d/m/Y" }} · orden {{ lote.orden.codigo }} · operador {{ lote.orden.operador.get_full_name|default:lote.orden.operador.username }}</p>
+    </div>
+    <span class="pill bl">Esperando liberación</span>
+  </div>
+  <p class="help" style="margin: 0">Se analiza con los parámetros de <b>{{ tipo }}</b> (sirven para todas sus marcas y tamaños).</p>
+</section>
+
+{% if not filas %}
+  <div class="banner wa"><b>{{ tipo }} no tiene parámetros.</b> No se puede liberar hasta que definas su lista.
+    <a href="{% url 'calidad_parametros' %}?tipo={{ tipo.pk }}">Definir parámetros →</a></div>
+{% else %}
+  {% if errores %}<div class="banner no">{% for e in errores %}{{ e }}<br>{% endfor %}</div>{% endif %}
+
+  <form method="post" style="display: flex; flex-direction: column; gap: 22px" novalidate>
+    {% csrf_token %}
+    <section class="card">
+      <h2>Análisis</h2>
+      <div class="vrows">
+        <div class="vrow vhead"><span>Parámetro</span><span>Valor medido</span><span>Resultado</span></div>
+        {% for f in filas %}
+        <div class="vrow">
+          <div>
+            <div class="vname">{{ f.p.nombre }}</div>
+            <div class="vrange">Rango: {% if f.p.minimo is not None %}{{ f.p.minimo|floatformat:"-3" }}{% else %}sin mínimo{% endif %} a {% if f.p.maximo is not None %}{{ f.p.maximo|floatformat:"-3" }}{% else %}sin máximo{% endif %} {{ f.p.unidad }}{% if f.p.metodo %} · {{ f.p.metodo }}{% endif %}</div>
+          </div>
+          <div class="f" style="flex-direction: row; align-items: center; gap: 8px">
+            <input type="text" inputmode="decimal" name="p_{{ f.p.pk }}" value="{{ f.valor }}" data-param="{{ f.p.pk }}" aria-label="Valor de {{ f.p.nombre }}">
+            <span class="muted" style="min-width: 36px">{{ f.p.unidad }}</span>
+          </div>
+          <div class="resultado" id="res-{{ f.p.pk }}">
+            {% if f.dentro is True %}<span class="pill ok">Dentro del rango</span>
+            {% elif f.dentro is False %}<span class="pill no">Fuera del rango</span>
+            {% else %}<span class="pill ne">Sin valor</span>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="f">
+        <label class="lab" for="motivo">Motivo u observación<span class="req"> · obligatorio solo si lo marcas no conforme con todo en rango</span></label>
+        <textarea name="motivo" id="motivo" rows="3" placeholder="Si algo sale fuera de rango, el motivo se llena solo con esos valores.">{{ motivo }}</textarea>
+      </div>
+      <div class="banner bl" id="aviso">Al liberar, el Almacenista lo puede guardar y despachar. Si no es conforme, el lote queda bloqueado y el motivo en el historial.</div>
+    </section>
+
+    <div class="btns">
+      <button class="btn dan" type="submit" name="accion" value="rechazar">No conforme</button>
+      <button class="btn" type="submit" name="accion" value="aprobar" id="btn-aprobar" style="background: #1F8A4C">Liberar lote</button>
+    </div>
+  </form>
+
+  {{ rangos|json_script:"rangos" }}
+  <script>
+  (function () {
+    const rangos = JSON.parse(document.getElementById("rangos").textContent);
+    const inputs = document.querySelectorAll("input[data-param]");
+    const aprobar = document.getElementById("btn-aprobar");
+    const aviso = document.getElementById("aviso");
+    function num(t) {
+      t = (t || "").trim().replace(/\s/g, "");
+      if (!t) return null;
+      if (t.includes(",") && t.includes(".")) t = t.replace(/\./g, "").replace(",", ".");
+      else t = t.replace(",", ".");
+      const n = Number(t);
+      return isNaN(n) ? null : n;
+    }
+    function evaluar() {
+      let fuera = 0, vacios = 0;
+      inputs.forEach(function (inp) {
+        const r = rangos[inp.dataset.param];
+        const v = num(inp.value);
+        const caja = document.getElementById("res-" + inp.dataset.param);
+        let html;
+        if (v === null) { vacios++; html = '<span class="pill ne">Sin valor</span>'; inp.classList.remove("mal"); }
+        else {
+          const ok = (r[0] === null || v >= Number(r[0])) && (r[1] === null || v <= Number(r[1]));
+          if (!ok) fuera++;
+          html = ok ? '<span class="pill ok">Dentro del rango</span>' : '<span class="pill no">Fuera del rango</span>';
+          inp.classList.toggle("mal", !ok);
+        }
+        caja.innerHTML = html;
+      });
+      aprobar.disabled = fuera > 0 || vacios > 0;
+      aprobar.style.opacity = aprobar.disabled ? .45 : 1;
+      if (fuera > 0) { aviso.className = "banner no"; aviso.textContent = "Hay " + fuera + " valor(es) fuera del rango: solo se puede marcar no conforme. El motivo se llena solo."; }
+      else if (vacios > 0) { aviso.className = "banner bl"; aviso.textContent = "Faltan " + vacios + " valor(es) por escribir."; }
+      else { aviso.className = "banner ok"; aviso.textContent = "Todo dentro del rango. Puedes liberar el lote."; }
+    }
+    inputs.forEach(function (i) { i.addEventListener("input", evaluar); });
+    evaluar();
+  })();
+  </script>
+{% endif %}
+{% endblock %}

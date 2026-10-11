@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block titulo %}Materiales y productos{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Materiales y productos</h1>
+  <p class="sub">Todo lo que se puede registrar en el inventario. El tipo viene fijo en el programa.</p>
+</div>
+
+
+<section class="card">
+  {% include "parciales/pestanas_materiales.html" %}
+  <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
+    <h2>Producto terminado ({{ lista|length }} productos · {{ total_tamanos }} tamaños)</h2>
+    {% if producto %}
+      <a class="btn" href="{% url 'gerente_materiales_productos' %}?abrir=1#formulario" style="display: inline-flex; align-items: center; text-decoration: none">+ Nuevo producto terminado</a>
+    {% else %}
+      <button class="btn" type="button" aria-controls="formulario" onclick="desplegar(this)">{% if form.errors or request.GET.abrir %}✕ Cerrar{% else %}+ Nuevo producto terminado{% endif %}</button>
+    {% endif %}
+  </div>
+
+  <div class="panel-nuevo panel-producto" id="formulario" data-texto="+ Nuevo producto terminado" {% if not producto and not form.errors and not request.GET.abrir and not formset.total_error_count %}hidden{% endif %}>
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap">
+      <div><h2>{% if producto %}Editar producto terminado{% else %}Nuevo producto terminado{% endif %}</h2>
+        <p class="sdesc">Un producto agrupa todos sus tamaños.</p></div>
+      <span class="pill ne">Producto terminado</span>
+    </div>
+    {% if form.non_field_errors %}<div class="banner no">{% for e in form.non_field_errors %}{{ e }} {% endfor %}</div>{% endif %}
+    {% if formset.non_form_errors %}<div class="banner no">{% for e in formset.non_form_errors %}{{ e }} {% endfor %}</div>{% endif %}
+
+    <form method="post" style="display: flex; flex-direction: column; gap: 18px" novalidate>
+      {% csrf_token %}
+      <div class="g3">
+        {% include "parciales/campo.html" with campo=form.tipo_nombre %}
+        {% include "parciales/campo.html" with campo=form.marca %}
+        <div class="f{% if form.vida_util_meses.errors %} err{% endif %}">
+          <label class="lab" for="{{ form.vida_util_meses.id_for_label }}">Vida útil<span class="req"> · obligatorio</span></label>
+          <div class="con-sufijo">{{ form.vida_util_meses }}<span class="suf">meses</span></div>
+          <div class="help">Con esto se calcula el vencimiento del lote.</div>
+          {% for e in form.vida_util_meses.errors %}<div class="errmsg">{{ e }}</div>{% endfor %}
+        </div>
+      </div>
+      <datalist id="tipos-existentes">{% for t in tipos %}<option value="{{ t.nombre }}">{% endfor %}</datalist>
+      <datalist id="empaques"><option value="Bolsa"><option value="Saco"><option value="Caja"><option value="Botella"><option value="Tarro"><option value="Lata"></datalist>
+
+      <div class="f">
+        <div class="lab">Tamaños de este producto<span class="req"> · al menos uno</span></div>
+        {{ formset.management_form }}
+        <div class="tam-tabla" id="tamanos">
+          <div class="tam-fila tam-cabecera"><span>Tamaño</span><span>Unidad</span><span>Empaque</span><span>Stock mínimo</span><span>Código</span><span></span></div>
+          {% for f in formset %}
+            {% include "parciales/fila_tamano.html" %}
+          {% endfor %}
+        </div>
+        <div><button class="btn sec" type="button" id="agregar-tamano" style="min-height: 44px">+ Agregar tamaño</button></div>
+        <div class="help">El código de cada tamaño se pone solo. La ✕ quita un tamaño nuevo o desactiva uno que ya existe.</div>
+      </div>
+
+      <template id="plantilla-tamano">{% with f=formset.empty_form %}{% include "parciales/fila_tamano.html" %}{% endwith %}</template>
+
+      <div class="btns">
+        {% if producto %}<a class="btn sec" href="{% url 'gerente_materiales_productos' %}" style="display: inline-flex; align-items: center; text-decoration: none">Cancelar</a>{% endif %}
+        <button class="btn" type="submit">{% if producto %}Guardar cambios{% else %}Guardar producto{% endif %}</button>
+      </div>
+    </form>
+  </div>
+
+  <table>
+    <thead><tr><th>Producto</th><th>Marca</th><th>Tamaños</th><th>Vida útil</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+      {% for p in lista %}
+      <tr{% if producto and p.pk == producto.pk %} style="background: #F2F6FC"{% endif %}>
+        <td><b>{{ p.tipo }}</b></td>
+        <td>{{ p.marca }}</td>
+        <td>{% for t in p.tamanos.all %}<span class="pill {% if t.activo %}bl{% else %}ne{% endif %}" style="margin: 2px 4px 2px 0">{{ t.cantidad|floatformat:"-3" }} {{ t.unidad }}</span>{% endfor %}</td>
+        <td>{{ p.vida_util_meses }} meses</td>
+        <td>{% if p.activo %}<span class="pill ok">Activo</span>{% else %}<span class="pill ne">Inactivo</span>{% endif %}</td>
+        <td>
+          <div class="acts">
+            <a class="lk" href="{% url 'gerente_materiales_productos_editar' p.pk %}#formulario">Editar</a>
+            <form method="post" action="{% url 'gerente_materiales_productos_estado' p.pk %}">
+              {% csrf_token %}
+              <button class="lk" type="submit">{% if p.activo %}Desactivar{% else %}Activar{% endif %}</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="muted">Todavía no hay productos terminados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+
+<script>
+function desplegar(boton) {
+  const panel = document.getElementById("formulario");
+  const abrir = panel.hidden;
+  panel.hidden = !abrir;
+  boton.textContent = abrir ? "✕ Cerrar" : panel.dataset.texto;
+  if (abrir) { const campo = panel.querySelector("input:not([type=hidden]), select"); if (campo) campo.focus(); }
+}
+
+// Tamaños: agregar filas nuevas y quitar o desactivar las existentes.
+(function () {
+  const total = document.getElementById("id_tamanos-TOTAL_FORMS");
+  const lista = document.getElementById("tamanos");
+  const plantilla = document.getElementById("plantilla-tamano");
+  document.getElementById("agregar-tamano").addEventListener("click", function () {
+    const i = Number(total.value);
+    const html = plantilla.innerHTML.replace(/__prefix__/g, i);
+    lista.insertAdjacentHTML("beforeend", html);
+    total.value = i + 1;
+    const nueva = lista.lastElementChild;
+    const activo = nueva.querySelector("input[type=checkbox]");
+    if (activo) activo.checked = true;
+    nueva.querySelector("input[type=number], input[type=text]").focus();
+  });
+})();
+
+function quitarTamano(boton) {
+  const fila = boton.closest(".tam-fila");
+  const activo = fila.querySelector("input[type=checkbox]");
+  if (fila.dataset.existe) {
+    // Un tamaño que ya existe no se borra: se desactiva (y se puede reactivar).
+    activo.checked = !activo.checked;
+    fila.classList.toggle("tam-inactivo", !activo.checked);
+    boton.title = activo.checked ? "Desactivar este tamaño" : "Reactivar este tamaño";
+    boton.textContent = activo.checked ? "✕" : "↺";
+  } else {
+    // Un tamaño nuevo se vacía y se oculta: el sistema lo ignora al guardar.
+    fila.querySelectorAll("input:not([type=hidden]):not([type=checkbox]), select").forEach(function (c) {
+      c.value = c.tagName === "SELECT" ? c.options[0].value : "";
+    });
+    fila.hidden = true;
+  }
+}
+</script>
+{% endblock %}

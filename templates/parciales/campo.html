@@ -1,0 +1,15 @@
+{# Dibuja un campo de formulario con el estilo del bosquejo. Uso: {% include "parciales/campo.html" with campo=form.nombre %} #}
+{% if campo.widget_type == "checkbox" %}
+<div class="f{% if campo.errors %} err{% endif %}">
+  <label class="chk">{{ campo }} <span>{{ campo.label }}</span></label>
+  {% if campo.help_text %}<div class="help">{{ campo.help_text }}</div>{% endif %}
+  {% for e in campo.errors %}<div class="errmsg">{{ e }}</div>{% endfor %}
+</div>
+{% else %}
+<div class="f{% if campo.errors %} err{% endif %}">
+  <label class="lab" for="{{ campo.id_for_label }}">{{ campo.label }}<span class="req"> · {% if campo.field.required %}obligatorio{% else %}opcional{% endif %}</span></label>
+  {% if campo.widget_type == "checkboxselectmultiple" %}<div class="checks">{{ campo }}</div>{% else %}{{ campo }}{% endif %}
+  {% if campo.help_text %}<div class="help">{{ campo.help_text }}</div>{% endif %}
+  {% for e in campo.errors %}<div class="errmsg">{{ e }}</div>{% endfor %}
+</div>
+{% endif %}

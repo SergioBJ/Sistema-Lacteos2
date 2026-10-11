@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block titulo %}Bodega y despacho{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Bodega y despacho</h1>
+  <p class="sub">Solo aparecen los lotes que Calidad liberó. Primero los que vencen antes.</p>
+</div>
+
+<section class="card">
+  <h2>Lotes listos ({{ lotes|length }})</h2>
+  <table>
+    <thead><tr><th>Lote</th><th>Producto</th><th>Quedan</th><th>Vence</th><th>Ubicación</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+    {% for lote in lotes %}
+      <tr>
+        <td><b>{{ lote.codigo }}</b></td>
+        <td>{{ lote.tamano }}{% if lote.orden.cliente %}<div class="help">Pedido de {{ lote.orden.cliente }}</div>{% endif %}</td>
+        <td>{{ lote.saldo }} de {{ lote.cantidad }}</td>
+        <td>{{ lote.vencimiento|date:"d/m/Y" }}{% if lote.vencimiento < hoy %} <span class="pill no">Vencido</span>{% endif %}</td>
+        <td>{{ lote.ubicacion|default:"Sin guardar" }}</td>
+        <td><span class="pill {% if lote.estado == 'LIBERADO' %}ok{% else %}wa{% endif %}">{{ lote.get_estado_display }}</span></td>
+        <td><a class="lk" href="{% url 'almacen_despacho_lote' lote.pk %}">Guardar o despachar</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7" class="muted">No hay lotes liberados en bodega.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% if bloqueados %}
+<section class="card">
+  <h2>Bloqueados por Calidad</h2>
+  <p class="help" style="margin: -8px 0 0">Estos lotes no son conformes: no se pueden despachar.</p>
+  {% for lote in bloqueados %}
+    <div class="item"><div><div class="it">{{ lote.codigo }} · {{ lote.tamano }}</div><div class="id">{{ lote.cantidad }} unidades</div></div>
+      <span class="pill no">No conforme</span></div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Despachos de este mes</h2>
+  <table>
+    <thead><tr><th>Fecha</th><th>Lote</th><th>Cliente</th><th>Cantidad</th><th>Factura</th></tr></thead>
+    <tbody>
+    {% for d in recientes %}
+      <tr><td>{{ d.fecha|date:"d/m H:i" }}</td><td>{{ d.lote.codigo }}</td><td>{{ d.cliente }}</td><td>{{ d.cantidad }} × {{ d.lote.tamano.empaque }}</td><td>{{ d.factura }}</td></tr>
+    {% empty %}
+      <tr><td colspan="5" class="muted">Todavía no hay despachos este mes.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

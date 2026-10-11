@@ -1,0 +1,30 @@
+{% extends "base_publica.html" %}
+{% block titulo %}Iniciar sesión{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Iniciar sesión</h1>
+  <p class="sub">Entra con tu usuario. Verás solo las tareas de tu rol.</p>
+</div>
+
+{% if form.non_field_errors %}
+  <div class="banner no">Usuario o contraseña incorrectos. Revisa e intenta de nuevo.</div>
+{% endif %}
+
+<form method="post" style="display: flex; flex-direction: column; gap: 22px">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}">
+  <div class="f">
+    <label class="lab" for="id_username">Usuario</label>
+    <input type="text" name="username" id="id_username" autocomplete="username" autofocus required
+           value="{{ form.username.value|default:'' }}">
+  </div>
+  <div class="f">
+    <label class="lab" for="id_password">Contraseña</label>
+    <input type="password" name="password" id="id_password" autocomplete="current-password" required>
+  </div>
+  <div style="display: flex; justify-content: flex-end; margin-top: -8px">
+    <a href="{% url 'password_reset' %}" style="font-size: 14px; font-weight: 600; color: #16427A">¿Olvidaste tu contraseña?</a>
+  </div>
+  <button class="btn" type="submit" style="width: 100%">Entrar</button>
+</form>
+{% endblock %}

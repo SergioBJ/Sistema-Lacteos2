@@ -1,0 +1,28 @@
+{% load static %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Sistema lácteo{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/estilos.css' %}?v={{ version_css }}">
+</head>
+<body>
+  <div class="publica">
+    <div class="lado">
+      <img src="{% static 'img/logo.jpg' %}" alt="Logo PROLAC">
+      <div>Sistema de Control Estadístico y Trazabilidad en Procesos Lácteos</div>
+    </div>
+    <div class="centro">
+      <div class="card">
+        <div class="logo-movil">
+          <img src="{% static 'img/logo.jpg' %}" alt="Logo PROLAC">
+          <span>Sistema de Control Estadístico y Trazabilidad en Procesos Lácteos</span>
+        </div>
+        {% block contenido %}{% endblock %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

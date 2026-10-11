@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block titulo %}Parámetros de calidad{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Parámetros de calidad</h1>
+  <p class="sub">Cada material y cada tipo de producto tiene su propia lista. Al revisar, el sistema compara cada valor con su rango.</p>
+</div>
+
+{% if sin_parametros %}
+<div class="banner wa"><b>{{ sin_parametros }} sin parámetros.</b> No se pueden revisar hasta que les definas su lista. Salen en amarillo a la izquierda.</div>
+{% endif %}
+
+<div class="par-layout">
+  <section class="card par-lista">
+    <h2>Materiales</h2>
+    {% for titulo, items in grupos %}
+      <div class="navsec" style="margin: 6px 0 0">{{ titulo }}</div>
+      {% for m in items %}
+        <a class="par-item{% if campo == 'material' and destino.pk == m.pk %} on{% endif %}" href="?material={{ m.pk }}">
+          <span>{{ m.nombre }}</span>
+          {% if m.n %}<span class="pill bl">{{ m.n }}</span>{% else %}<span class="pill wa">Sin parámetros</span>{% endif %}
+        </a>
+      {% endfor %}
+    {% empty %}
+      <p class="muted">El Gerente todavía no ha creado materiales.</p>
+    {% endfor %}
+
+    <h2 style="margin-top: 14px">Producto terminado</h2>
+    <p class="help" style="margin: -10px 0 0">Por tipo de producto: sirve para todas sus marcas y tamaños.</p>
+    {% for t in tipos %}
+      <a class="par-item{% if campo == 'tipo_producto' and destino.pk == t.pk %} on{% endif %}" href="?tipo={{ t.pk }}">
+        <span>{{ t.nombre }}</span>
+        {% if t.n %}<span class="pill bl">{{ t.n }}</span>{% else %}<span class="pill wa">Sin parámetros</span>{% endif %}
+      </a>
+    {% empty %}
+      <p class="muted">El Gerente todavía no ha creado productos.</p>
+    {% endfor %}
+  </section>
+
+  <div style="display: flex; flex-direction: column; gap: 22px; min-width: 0">
+    {% if not destino %}
+      <section class="card"><p class="muted" style="margin: 0">Elige a la izquierda un material o un producto para ver y editar sus parámetros.</p></section>
+    {% else %}
+      <section class="card">
+        <div>
+          <h2>{{ destino }}</h2>
+          <p class="help" style="margin: 4px 0 0">{% if campo == 'material' %}{{ destino.get_tipo_display }}{% else %}Producto terminado{% endif %}</p>
+        </div>
+        <table>
+          <thead><tr><th>Parámetro</th><th>Cómo se evalúa</th><th>Mínimo</th><th>Máximo</th><th>Unidad</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+          {% for p in lista %}
+            <tr{% if editando and editando.pk == p.pk %} style="background: #F2F6FC"{% endif %}>
+              <td><b>{{ p.nombre }}</b></td>
+              <td>{{ p.metodo|default:"—" }}</td>
+              <td>{% if p.minimo is not None %}{{ p.minimo|floatformat:"-3" }}{% else %}—{% endif %}</td>
+              <td>{% if p.maximo is not None %}{{ p.maximo|floatformat:"-3" }}{% else %}—{% endif %}</td>
+              <td>{{ p.unidad|default:"—" }}</td>
+              <td>{% if p.activo %}<span class="pill ok">Activo</span>{% else %}<span class="pill ne">Inactivo</span>{% endif %}</td>
+              <td>
+                <div class="acts">
+                  <a class="lk" href="?{{ clave }}={{ destino.pk }}&editar={{ p.pk }}#formulario">Editar</a>
+                  <form method="post" action="{% url 'calidad_parametros_estado' p.pk %}">
+                    {% csrf_token %}
+                    <button class="lk" type="submit">{% if p.activo %}Desactivar{% else %}Activar{% endif %}</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="muted">Todavía no tiene parámetros. Agrega el primero abajo.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="formulario">
+        <h2>{% if editando %}Editar · {{ editando.nombre }}{% else %}Agregar parámetro{% endif %}</h2>
+        {% if form.non_field_errors %}<div class="banner no">{% for e in form.non_field_errors %}{{ e }} {% endfor %}</div>{% endif %}
+        <form method="post" style="display: flex; flex-direction: column; gap: 18px">
+          {% csrf_token %}
+          <div class="g2">
+            {% include "parciales/campo.html" with campo=form.nombre %}
+            {% include "parciales/campo.html" with campo=form.metodo %}
+          </div>
+          <div class="g3">
+            {% include "parciales/campo.html" with campo=form.minimo %}
+            {% include "parciales/campo.html" with campo=form.maximo %}
+            {% include "parciales/campo.html" with campo=form.unidad %}
+          </div>
+          <div class="btns">
+            {% if editando %}<a class="btn sec" href="?{{ clave }}={{ destino.pk }}" style="display: inline-flex; align-items: center; text-decoration: none">Cancelar</a>{% endif %}
+            <button class="btn" type="submit" style="background: #5A3D8A">{% if editando %}Guardar cambios{% else %}Agregar parámetro{% endif %}</button>
+          </div>
+        </form>
+      </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

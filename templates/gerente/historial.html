@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block titulo %}Historial y reportes{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Historial y reportes</h1>
+  <p class="sub">Todo lo que hace cada rol queda guardado aquí. No se puede borrar ni editar.</p>
+</div>
+
+<section class="card">
+  <form method="get" class="filtros">
+    <div class="f"><label class="lab" for="desde">Desde</label><input type="date" id="desde" name="desde" value="{{ desde|date:'Y-m-d' }}"></div>
+    <div class="f"><label class="lab" for="hasta">Hasta</label><input type="date" id="hasta" name="hasta" value="{{ hasta|date:'Y-m-d' }}"></div>
+    <div class="f"><label class="lab" for="rol">Rol</label>
+      <select id="rol" name="rol"><option value="">Todos</option>{% for clave, nombre, color in roles %}<option value="{{ clave }}" {% if rol == clave %}selected{% endif %}>{{ nombre }}</option>{% endfor %}</select></div>
+    <div class="f"><label class="lab" for="q">Buscar</label><input type="text" id="q" name="q" value="{{ q }}" placeholder="Lote, orden, persona…"></div>
+    <label class="chk" style="align-self: end"><input type="checkbox" name="solo" value="no" {% if solo_no %}checked{% endif %}> <span>Solo lo que no pasó</span></label>
+    <div class="btns" style="align-self: end"><button class="btn" type="submit" style="background: #2E4A78">Filtrar</button></div>
+  </form>
+  <p class="help" style="margin: 0">Mostrando {{ pagina.start_index }}–{{ pagina.end_index }} de {{ total }} movimiento{{ total|pluralize }} · <b style="color: #951B10">{{ no_paso }} no pas{{ no_paso|pluralize:"ó,aron" }}</b> · del {{ desde|date:"d/m/Y" }} al {{ hasta|date:"d/m/Y" }}</p>
+
+  <table>
+    <thead><tr><th>Fecha</th><th>Quién</th><th>Qué hizo</th><th>Resultado</th></tr></thead>
+    <tbody>
+    {% for m in pagina %}
+      <tr>
+        <td style="white-space: nowrap">{{ m.fecha|date:"d/m/Y" }}<div class="help">{{ m.fecha|date:"H:i" }}</div></td>
+        <td><b>{{ m.usuario.get_full_name|default:m.usuario.username }}</b><div class="help">{{ m.usuario.get_rol_display }}</div></td>
+        <td style="white-space: normal">{{ m.accion }}<div class="help">{{ m.get_etapa_display }} · {{ m.referencia }}</div>
+          {% if m.motivo and not m.paso %}<div class="errmsg" style="margin-top: 4px">Motivo: {{ m.motivo }}</div>{% elif m.motivo %}<div class="help">Nota: {{ m.motivo }}</div>{% endif %}</td>
+        <td>{% if m.paso %}<span class="pill ok">Pasó</span>{% else %}<span class="pill no">No pasó</span>{% endif %}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="muted">No hay movimientos con estos filtros.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% include "parciales/paginacion.html" %}
+</section>
+
+<section class="card">
+  <h2>Descargar un reporte</h2>
+  <p class="help" style="margin: -8px 0 0">Usan las fechas y filtros de arriba. Cada número clave se compara con el periodo anterior de la misma duración.</p>
+  <div class="g3">
+    <div class="tile"><div class="tt">Inventario actual</div><div class="td">Cuánto hay de cada cosa y qué está bajo el mínimo.</div>
+      <div class="acts" style="justify-content: flex-start; margin-top: 4px">
+        <a class="lk" href="{% url 'gerente_reporte' 'inventario' 'excel' %}?{{ filtros }}">Excel</a>
+        <a class="lk" href="{% url 'gerente_reporte' 'inventario' 'pdf' %}?{{ filtros }}">PDF</a>
+      </div></div>
+    <div class="tile"><div class="tt">Movimientos</div><div class="td">El historial con los filtros de arriba.</div>
+      <div class="acts" style="justify-content: flex-start; margin-top: 4px">
+        <a class="lk" href="{% url 'gerente_reporte' 'movimientos' 'excel' %}?{{ filtros }}">Excel</a>
+        <a class="lk" href="{% url 'gerente_reporte' 'movimientos' 'pdf' %}?{{ filtros }}">PDF</a>
+      </div></div>
+    <div class="tile"><div class="tt">Lo que no pasó</div><div class="td">Rechazos y órdenes detenidas, con su motivo.</div>
+      <div class="acts" style="justify-content: flex-start; margin-top: 4px">
+        <a class="lk" href="{% url 'gerente_reporte' 'no-paso' 'excel' %}?{{ filtros }}">Excel</a>
+        <a class="lk" href="{% url 'gerente_reporte' 'no-paso' 'pdf' %}?{{ filtros }}">PDF</a>
+      </div></div>
+    <div class="tile"><div class="tt">Producción</div><div class="td">Meta contra producido y materiales usados.</div>
+      <div class="acts" style="justify-content: flex-start; margin-top: 4px">
+        <a class="lk" href="{% url 'gerente_reporte' 'produccion' 'excel' %}?{{ filtros }}">Excel</a>
+        <a class="lk" href="{% url 'gerente_reporte' 'produccion' 'pdf' %}?{{ filtros }}">PDF</a>
+      </div></div>
+    <div class="tile"><div class="tt">Proveedores</div><div class="td">Entregas, rechazos y motivos de cada proveedor.</div>
+      <div class="acts" style="justify-content: flex-start; margin-top: 4px">
+        <a class="lk" href="{% url 'gerente_reporte' 'proveedores' 'excel' %}?{{ filtros }}">Excel</a>
+        <a class="lk" href="{% url 'gerente_reporte' 'proveedores' 'pdf' %}?{{ filtros }}">PDF</a>
+      </div></div>
+    <div class="tile"><div class="tt">Vencimientos</div><div class="td">Materiales y lotes que vencen pronto.</div>
+      <div class="acts" style="justify-content: flex-start; margin-top: 4px">
+        <a class="lk" href="{% url 'gerente_reporte' 'vencimientos' 'excel' %}?{{ filtros }}">Excel</a>
+        <a class="lk" href="{% url 'gerente_reporte' 'vencimientos' 'pdf' %}?{{ filtros }}">PDF</a>
+      </div></div>
+    <div class="tile"><div class="tt">Despachos por cliente</div><div class="td">A qué cliente se despacha más y qué productos se lleva.</div>
+      <div class="acts" style="justify-content: flex-start; margin-top: 4px">
+        <a class="lk" href="{% url 'gerente_reporte' 'clientes' 'excel' %}?{{ filtros }}">Excel</a>
+        <a class="lk" href="{% url 'gerente_reporte' 'clientes' 'pdf' %}?{{ filtros }}">PDF</a>
+      </div></div>
+  </div>
+</section>
+{% endblock %}

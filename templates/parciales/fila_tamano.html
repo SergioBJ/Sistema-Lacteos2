@@ -1,0 +1,13 @@
+{# Una fila de tamaño del producto terminado (se usa también como plantilla para "+ Agregar tamaño") #}
+<div class="tam-fila{% if f.instance.pk and not f.activo.value %} tam-inactivo{% endif %}" data-existe="{% if f.instance.pk %}1{% endif %}">
+  {% for oculto in f.hidden_fields %}{{ oculto }}{% endfor %}
+  <div class="f{% if f.cantidad.errors %} err{% endif %}"><span class="etq">Tamaño</span>{{ f.cantidad }}{% for e in f.cantidad.errors %}<div class="errmsg">{{ e }}</div>{% endfor %}</div>
+  <div class="f"><span class="etq">Unidad</span>{{ f.unidad }}</div>
+  <div class="f{% if f.empaque.errors %} err{% endif %}"><span class="etq">Empaque</span>{{ f.empaque }}{% for e in f.empaque.errors %}<div class="errmsg">{{ e }}</div>{% endfor %}</div>
+  <div class="f"><span class="etq">Stock mínimo</span><div class="con-sufijo">{{ f.stock_minimo }}<span class="suf">und</span></div></div>
+  <div class="f"><span class="etq">Código</span><div class="cod-auto">{{ f.instance.codigo|default:"Automático" }}</div></div>
+  <div class="tam-acciones">
+    <span hidden>{{ f.activo }}</span>
+    <button class="rm" type="button" aria-label="Quitar tamaño" title="Quitar o desactivar este tamaño" onclick="quitarTamano(this)">✕</button>
+  </div>
+</div>

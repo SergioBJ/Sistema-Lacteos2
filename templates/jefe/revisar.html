@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block titulo %}Revisar {{ orden.codigo }}{% endblock %}
+{% block contenido %}
+<div>
+  <a href="{% url 'jefe_revisar' %}" class="help">← Volver</a>
+  <h1 style="margin-top: 6px">Revisar producción · {{ orden.codigo }}</h1>
+  <p class="sub">{{ orden.tamano }} · operador {{ orden.operador.get_full_name|default:orden.operador.username }}{% if orden.cliente %} · cliente {{ orden.cliente }}{% endif %}</p>
+</div>
+
+<div class="g3">
+  <div class="card" style="gap: 4px"><div class="help">Producido</div>
+    <div style="font-size: 26px; font-weight: 600">{{ registro.cantidad_producida }} <span class="muted" style="font-size: 15px">de {{ orden.cantidad }}</span></div>
+    {% if menos %}<span class="pill wa" style="align-self: flex-start">Menos de lo pedido</span>{% else %}<span class="pill ok" style="align-self: flex-start">Completo</span>{% endif %}</div>
+  <div class="card" style="gap: 4px"><div class="help">Limpieza</div>
+    <div style="font-size: 18px; font-weight: 600">{% if registro.limpieza_hecha %}Hecha{% else %}No confirmada{% endif %}</div>
+    <span class="pill {% if registro.limpieza_hecha %}ok{% else %}no{% endif %}" style="align-self: flex-start">{{ registro.limpieza_hecha|yesno:"Confirmada,Falta" }}</span></div>
+  <div class="card" style="gap: 4px"><div class="help">Tiempo</div>
+    <div style="font-size: 18px; font-weight: 600">{{ registro.inicio|date:"H:i" }} – {{ registro.fin|date:"H:i" }}</div>
+    <span class="help">{{ registro.inicio|date:"d/m/Y" }}</span></div>
+</div>
+
+<section class="card">
+  <h2>Parámetros del proceso</h2>
+  <table>
+    <thead><tr><th>Parámetro</th><th>Valor</th><th>Rango</th><th>Resultado</th></tr></thead>
+    <tbody>
+    {% for v in valores %}
+      <tr><td>{{ v.nombre }}</td><td><b>{{ v.valor|floatformat:"-2" }} {{ v.unidad }}</b></td>
+        <td>{{ v.minimo|floatformat:"-2" }} a {{ v.maximo|floatformat:"-2" }} {{ v.unidad }}</td>
+        <td>{% if v.dentro_rango %}<span class="pill ok">En rango</span>{% else %}<span class="pill no">Fuera de rango</span>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if registro.novedades %}<div class="sys"><b>Novedades del operador:</b> {{ registro.novedades }}</div>{% endif %}
+</section>
+
+{% if fuera or menos %}
+  <div class="banner wa">Revisa con cuidado: {% if fuera %}{{ fuera|length }} parámetro{{ fuera|length|pluralize }} fuera de rango{% endif %}{% if fuera and menos %} y {% endif %}{% if menos %}se produjo menos de lo pedido{% endif %}.</div>
+{% endif %}
+{% if errores %}<div class="banner no">{% for e in errores %}{{ e }}<br>{% endfor %}</div>{% endif %}
+
+<form method="post" style="display: flex; flex-direction: column; gap: 22px">
+  {% csrf_token %}
+  <section class="card">
+    <h2>¿Qué decides?</h2>
+    <div class="g2">
+      <label class="choice"><input type="radio" name="accion" value="aprobar" {% if not novedad_abierta %}checked{% endif %} onchange="document.getElementById('nov').hidden=true">
+        <div><b>Aprobar</b><div class="help">Se crea el lote de producto terminado y pasa a Calidad para su liberación.</div></div></label>
+      <label class="choice"><input type="radio" name="accion" value="novedad" {% if novedad_abierta %}checked{% endif %} onchange="document.getElementById('nov').hidden=false">
+        <div><b>Marcar con novedad</b><div class="help">No pasa a Calidad. Queda el motivo en el historial.</div></div></label>
+    </div>
+
+    <div id="nov" {% if not novedad_abierta %}hidden{% endif %} style="display: flex; flex-direction: column; gap: 16px">
+      <div class="g2">
+        <div class="f"><label class="lab" for="tipo">Tipo de novedad<span class="req"> · obligatorio</span></label>
+          <select id="tipo" name="tipo_novedad"><option value="">Elige el tipo</option>
+            {% for t in tipos %}<option value="{{ t }}" {% if datos.tipo_novedad == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+        <div class="f"><div class="lab">¿Qué se hace?<span class="req"> · obligatorio</span></div>
+          <label class="chk"><input type="radio" name="que_hacer" value="DEVOLVER" {% if datos.que_hacer == "DEVOLVER" %}checked{% endif %}> <span>Devolver al operador para que corrija</span></label>
+          <label class="chk"><input type="radio" name="que_hacer" value="DETENER" {% if datos.que_hacer == "DETENER" %}checked{% endif %}> <span>Detener la orden</span></label></div>
+      </div>
+      <div class="f"><label class="lab" for="motivo">¿Por qué no pasó?<span class="req"> · obligatorio</span></label>
+        <textarea id="motivo" name="motivo" rows="3" placeholder="Ejemplo: la temperatura de secado estuvo en 210 °C durante 20 minutos.">{{ datos.motivo|default:'' }}</textarea></div>
+    </div>
+  </section>
+  <div class="btns">
+    <a class="btn sec" href="{% url 'jefe_revisar' %}" style="display: inline-flex; align-items: center; text-decoration: none">Cancelar</a>
+    <button class="btn" type="submit" style="background: #8A4A10">Guardar decisión</button>
+  </div>
+</form>
+{% endblock %}

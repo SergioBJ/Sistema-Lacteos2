@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block titulo %}Recepción de materia prima{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Recepción de materia prima</h1>
+  <p class="sub">Llena los 3 pasos. Al final, el material queda esperando la revisión de Calidad.</p>
+</div>
+
+{% if form.errors %}
+  <div class="banner no">Revisa los campos marcados en rojo para poder guardar.</div>
+{% endif %}
+
+<form method="post" style="display: flex; flex-direction: column; gap: 22px" novalidate>
+  {% csrf_token %}
+
+  <section class="card">
+    <div class="stephead"><div class="num" style="background: #1D6656">1</div>
+      <div><h2>¿Qué llegó?</h2><p class="sdesc">Elige primero el tipo y el material: con él se filtran los proveedores del paso 2.</p></div>
+    </div>
+    <div class="f">
+      <div class="lab">Tipo de material</div>
+      <div class="seg">
+        {% for opcion in form.tipo %}
+          <label class="opt-radio">{{ opcion.tag }} <span>{{ opcion.choice_label }}</span></label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="g2">
+      {% include "parciales/campo.html" with campo=form.material %}
+      <div class="f{% if form.cantidad.errors %} err{% endif %}">
+        <label class="lab" for="id_cantidad">Cantidad que llegó<span class="req"> · obligatorio</span></label>
+        <div style="display: flex; gap: 8px; align-items: center">{{ form.cantidad }}<span id="unidad" class="muted" style="min-width: 70px"></span></div>
+        <div class="help">La unidad se pone sola según el material.</div>
+        {% for e in form.cantidad.errors %}<div class="errmsg">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="stephead"><div class="num" style="background: #1D6656">2</div>
+      <div><h2>¿De dónde viene?</h2><p class="sdesc">Copia estos datos de la remisión del proveedor.</p></div>
+    </div>
+    <div class="g3">
+      {% include "parciales/campo.html" with campo=form.proveedor %}
+      {% include "parciales/campo.html" with campo=form.lote_proveedor %}
+      {% include "parciales/campo.html" with campo=form.vencimiento %}
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="stephead"><div class="num" style="background: #1D6656">3</div>
+      <div><h2>¿Llegaron los documentos?</h2><p class="sdesc">Marca los que recibiste.</p></div>
+    </div>
+    <div class="seg" style="gap: 28px">
+      <label class="chk">{{ form.ficha_tecnica }} <span>Ficha técnica</span></label>
+      <label class="chk">{{ form.certificado }} <span>Certificado de calidad</span></label>
+      <label class="chk">{{ form.remision }} <span>Remisión o factura</span></label>
+    </div>
+    {% include "parciales/campo.html" with campo=form.observaciones %}
+  </section>
+
+  <div class="sys">
+    <span>🔒</span>
+    <div><b>Lo completa el sistema:</b> N° de llegada {{ proximo_codigo }} · fecha y hora · tu nombre ({{ user.get_full_name|default:user.username }}).</div>
+  </div>
+
+  <div class="btns">
+    <button class="btn dan" type="submit" name="devolver" value="1">Devolver al proveedor</button>
+    <button class="btn" type="submit" style="background: #1D6656">Guardar y enviar a Calidad</button>
+  </div>
+  <p class="help" style="text-align: right; margin: -10px 0 0">Para devolver, escribe el motivo en Observaciones.</p>
+</form>
+
+{{ datos_materiales|json_script:"datos-materiales" }}
+<script>
+(function () {
+  const datos = JSON.parse(document.getElementById("datos-materiales").textContent);
+  const material = document.getElementById("id_material");
+  const proveedor = document.getElementById("id_proveedor");
+  const unidad = document.getElementById("unidad");
+  const radios = document.querySelectorAll("input[name=tipo]");
+
+  function tipoElegido() {
+    const r = document.querySelector("input[name=tipo]:checked");
+    return r ? r.value : null;
+  }
+
+  function filtrarMateriales() {
+    const tipo = tipoElegido();
+    for (const op of material.options) {
+      if (!op.value) continue;
+      const d = datos[op.value];
+      op.hidden = !d || d.tipo !== tipo;
+    }
+    const actual = material.selectedOptions[0];
+    if (actual && actual.hidden) material.value = "";
+    filtrarProveedores();
+  }
+
+  function filtrarProveedores() {
+    const d = datos[material.value];
+    unidad.textContent = d ? d.unidad : "";
+    for (const op of proveedor.options) {
+      if (!op.value) continue;
+      op.hidden = !d || !d.proveedores.includes(Number(op.value));
+    }
+    const actual = proveedor.selectedOptions[0];
+    if (actual && actual.hidden) proveedor.value = "";
+  }
+
+  radios.forEach(r => r.addEventListener("change", filtrarMateriales));
+  material.addEventListener("change", filtrarProveedores);
+  filtrarMateriales();
+})();
+</script>
+{% endblock %}

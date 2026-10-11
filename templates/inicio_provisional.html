@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block titulo %}Inicio{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Hola, {{ user.first_name|default:user.username }}</h1>
+  <p class="sub">Entraste como <b>{{ user.get_rol_display|default:"sin rol" }}</b>.</p>
+</div>
+<div class="banner bl">
+  Las pantallas de tu rol todavía se están construyendo. En el menú de la izquierda aparecen en gris
+  las que faltan; se irán activando solas a medida que las terminemos.
+</div>
+{% endblock %}

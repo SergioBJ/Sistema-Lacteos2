@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block titulo %}Mis tareas{% endblock %}
+{% block contenido %}
+<div>
+  <h1>¿Qué necesitas hacer hoy?</h1>
+  <p class="sub">Elige una tarea. El número te dice cuántas cosas te esperan.</p>
+</div>
+
+<div class="g3">
+  <a class="tile" href="{% url 'almacen_recepcion' %}">
+    <span class="pill ne" style="align-self: flex-start">Cuando llega un pedido</span>
+    <div class="tt">Recepción de materia prima</div>
+    <div class="td">Materia prima, empaque o desinfectante que acaba de llegar.</div>
+    <div class="go" style="color: #1D6656">Empezar →</div>
+  </a>
+  <a class="tile" href="{{ url_entrega|default:'#' }}">
+    <span class="pill {% if ordenes_esperando %}wa{% else %}ne{% endif %}" style="align-self: flex-start">
+      {% if ordenes_esperando %}{{ ordenes_esperando }} orden{{ ordenes_esperando|pluralize:"es" }} esperando{% else %}Nada pendiente{% endif %}
+    </span>
+    <div class="tt">Entregar materiales a producción</div>
+    <div class="td">El jefe de producción creó una orden y necesita sus materiales.</div>
+    <div class="go" style="color: #1D6656">{% if url_entrega %}Ver órdenes →{% else %}Pronto{% endif %}</div>
+  </a>
+  <a class="tile" href="{{ url_despacho|default:'#' }}">
+    <span class="pill {% if lotes_liberados %}ok{% else %}ne{% endif %}" style="align-self: flex-start">
+      {% if lotes_liberados %}{{ lotes_liberados }} lote{{ lotes_liberados|pluralize }} liberado{{ lotes_liberados|pluralize }}{% else %}Nada pendiente{% endif %}
+    </span>
+    <div class="tt">Guardar y despachar producto</div>
+    <div class="td">Calidad liberó un lote: guárdalo en bodega o despáchalo.</div>
+    <div class="go" style="color: #1D6656">{% if url_despacho %}Ver lotes →{% else %}Pronto{% endif %}</div>
+  </a>
+</div>
+
+<section class="card">
+  <h2>Lo que registraste hoy</h2>
+  {% for l in hoy %}
+    <div class="item">
+      <div>
+        <div class="it">{{ l.material.nombre }} · {{ l.cantidad|floatformat:"-2" }} {{ l.material.unidad }}</div>
+        <div class="id">{{ l.codigo }} · lote {{ l.lote_proveedor }} · {{ l.proveedor }} · {{ l.fecha|time:"H:i" }}</div>
+      </div>
+      {% if l.estado == "APROBADA" %}<span class="pill ok">Aprobada · ya está en inventario</span>
+      {% elif l.estado == "RECHAZADA" %}<span class="pill no">Rechazada por Calidad</span>
+      {% elif l.estado == "DEVUELTA" %}<span class="pill no">Devuelta al proveedor</span>
+      {% else %}<span class="pill bl">Esperando a Calidad</span>{% endif %}
+    </div>
+  {% empty %}
+    <p class="muted" style="margin: 0">Hoy todavía no has registrado llegadas.</p>
+  {% endfor %}
+</section>
+{% endblock %}

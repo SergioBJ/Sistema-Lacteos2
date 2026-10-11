@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titulo %}Revisar producción{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Revisar producción</h1>
+  <p class="sub">Producciones que los operadores enviaron. Apruébalas para que pasen a Calidad, o márcalas con novedad.</p>
+</div>
+<section class="card">
+  <h2>Por revisar ({{ por_revisar|length }})</h2>
+  {% for o in por_revisar %}
+    <div class="item">
+      <div>
+        <div class="it">{{ o.codigo }} · {{ o.registro.cantidad_producida }} de {{ o.cantidad }} × {{ o.tamano }}</div>
+        <div class="id">Operador {{ o.operador.get_full_name|default:o.operador.username }} · enviado {{ o.registro.fecha|date:"d/m H:i" }}</div>
+      </div>
+      <a class="btn" href="{% url 'jefe_revisar_orden' o.pk %}" style="background: #8A4A10; display: inline-flex; align-items: center; text-decoration: none">Revisar</a>
+    </div>
+  {% empty %}
+    <p class="muted" style="margin: 0">No hay producciones esperando tu revisión.</p>
+  {% endfor %}
+</section>
+{% endblock %}

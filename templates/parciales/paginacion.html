@@ -1,0 +1,19 @@
+{% if pagina.paginator.num_pages > 1 %}
+<nav class="paginacion" aria-label="Páginas">
+  {% if pagina.has_previous %}
+    <a class="pag" href="?{{ filtros }}{% if filtros %}&{% endif %}pagina={{ pagina.previous_page_number }}">← Anterior</a>
+  {% else %}<span class="pag off">← Anterior</span>{% endif %}
+
+  <span class="pag-numeros">
+  {% for n in paginas %}
+    {% if n == pagina.paginator.ELLIPSIS %}<span class="pag off">…</span>
+    {% elif n == pagina.number %}<span class="pag on" aria-current="page">{{ n }}</span>
+    {% else %}<a class="pag" href="?{{ filtros }}{% if filtros %}&{% endif %}pagina={{ n }}">{{ n }}</a>{% endif %}
+  {% endfor %}
+  </span>
+
+  {% if pagina.has_next %}
+    <a class="pag" href="?{{ filtros }}{% if filtros %}&{% endif %}pagina={{ pagina.next_page_number }}">Siguiente →</a>
+  {% else %}<span class="pag off">Siguiente →</span>{% endif %}
+</nav>
+{% endif %}

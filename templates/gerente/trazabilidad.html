@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block titulo %}Trazabilidad{% endblock %}
+{% block contenido %}
+<div>
+  <h1>Trazabilidad</h1>
+  <p class="sub">Busca un lote, una orden o un lote de proveedor y ve todo su recorrido: de dónde vino, quién lo hizo y a dónde fue.</p>
+</div>
+
+<section class="card" style="padding: 20px 24px">
+  <form method="get" class="search" style="max-width: none">
+    <input type="text" name="q" value="{{ q }}" placeholder="Ejemplo: L-2026-001, OP-2026-001 o LP-8841" aria-label="Buscar">
+    <button class="btn" type="submit" style="background: #2E4A78">Buscar</button>
+  </form>
+  {% if recientes %}
+  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px">
+    <span class="muted">Recientes:</span>
+    {% for l in recientes %}<a class="pill {% if l.codigo == q %}bl{% else %}ne{% endif %}" href="?q={{ l.codigo }}" style="text-decoration: none">{{ l.codigo }}</a>{% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+{% if no_encontrado %}
+  <div class="banner wa">No se encontró «{{ q }}». Escribe el código completo de un lote (L-…), una orden (OP-…), una llegada (ING-…) o el lote del proveedor.</div>
+{% endif %}
+
+{% if modo == "lote" %}
+<section class="card">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap">
+    <div>
+      <h2 style="font-size: 20px">{% if lote %}Lote {{ lote.codigo }}{% else %}Orden {{ orden.codigo }}{% endif %}</h2>
+      <p class="sdesc">{{ orden.tamano }}{% if lote %} · {{ lote.cantidad }} unidades · vence {{ lote.vencimiento|date:"d/m/Y" }}{% endif %} · orden {{ orden.codigo }}</p>
+    </div>
+    {% if lote %}<span class="pill {% if lote.estado == 'NO_CONFORME' %}no{% elif lote.estado == 'DESPACHADO' %}ok{% else %}wa{% endif %}">{{ lote.get_estado_display }}{% if despachado %} · {{ despachado }} de {{ lote.cantidad }}{% endif %}</span>
+    {% else %}<span class="pill ne">{{ orden.get_estado_display }}</span>{% endif %}
+  </div>
+  <div class="kpis" style="grid-template-columns: repeat(4, minmax(0, 1fr))">
+    <div class="kpi"><div class="kl">Viene de</div><div style="font-weight: 600">{% if proveedores %}{{ proveedores|length }} proveedor{{ proveedores|length|pluralize:"es" }} · {{ origen|length }} lote{{ origen|length|pluralize }}{% else %}—{% endif %}</div></div>
+    <div class="kpi"><div class="kl">Producido por</div><div style="font-weight: 600">{{ operador }}</div></div>
+    <div class="kpi"><div class="kl">Liberado por</div><div style="font-weight: 600">{{ libero|default:"Todavía no" }}</div></div>
+    <div class="kpi"><div class="kl">Fue a</div><div style="font-weight: 600">{% if clientes %}{{ clientes|join:", " }}{% else %}Aún en planta{% endif %}</div>
+      {% if lote and despachado and despachado < lote.cantidad %}<div class="help">El resto sigue en bodega</div>{% endif %}</div>
+  </div>
+
+  <h2>Trazabilidad del proceso</h2>
+  <div class="tl">
+    {% for e in eventos %}
+    <div class="ts">
+      <div class="tmeta" style="text-align: right; padding-top: 2px">{{ e.fecha|date:"d/m H:i" }}</div>
+      <div style="display: flex; flex-direction: column; align-items: center; color: {{ e.color }}">
+        <div class="tdot" style="background: {{ e.color }}"></div>{% if not forloop.last %}<div class="tline"></div>{% endif %}
+      </div>
+      <div class="tbox"{% if not e.paso %} style="border-color: #F0BBB3; background: #FFF8F7"{% endif %}>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap"><span class="rp" style="background: {{ e.color }}">{{ e.rol }}</span><span class="tmeta">{{ e.quien }}</span>
+          {% if not e.paso %}<span class="pill no">No pasó</span>{% endif %}</div>
+        <div class="tt2">{{ e.titulo }}</div>
+        {% if e.detalle %}<div class="tmeta">{{ e.detalle }}</div>{% endif %}
+        {% if e.tabla %}
+        <table style="margin-top: 6px">
+          <thead><tr><th>Material</th><th>Lote</th><th>Proveedor</th><th>Cantidad</th><th>Aprobado por</th></tr></thead>
+          <tbody>{% for o in e.tabla %}<tr><td>{{ o.material }}</td><td><a href="?q={{ o.lote }}">{{ o.lote }}</a></td><td>{{ o.proveedor }}</td><td>{{ o.cantidad }}</td><td>{{ o.aprobo }}</td></tr>{% endfor %}</tbody>
+        </table>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if modo == "origen" %}
+<div class="banner bl"><b>Búsqueda al revés.</b> Desde un lote de proveedor ves en qué productos terminó y a qué clientes llegó. Útil si un proveedor reporta un problema.</div>
+{% for f in filas %}
+<section class="card">
+  <div style="display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap">
+    <div>
+      <h2 style="font-size: 20px">{{ f.ll.material.nombre }} · lote {{ f.ll.lote_proveedor }}</h2>
+      <p class="sdesc">{{ f.ll.codigo }} · {{ f.ll.proveedor }} · {{ f.ll.cantidad|floatformat:"-2" }} {{ f.ll.material.unidad }} · llegó {{ f.ll.fecha|date:"d/m/Y" }} · recibió {{ f.ll.registrado_por.get_full_name|default:f.ll.registrado_por.username }}</p>
+    </div>
+    <span class="pill {% if f.ll.estado == 'APROBADA' %}ok{% elif f.ll.estado == 'ESPERANDO' %}bl{% else %}no{% endif %}">{{ f.ll.get_estado_display }}</span>
+  </div>
+  {% if f.rev %}<div class="sys">Revisado por {{ f.rev.revisado_por.get_full_name|default:f.rev.revisado_por.username }} el {{ f.rev.fecha|date:"d/m/Y H:i" }}{% if f.rev.motivo %} · {{ f.rev.motivo }}{% endif %}</div>{% endif %}
+  <table>
+    <thead><tr><th>Se usó en la orden</th><th>Cantidad usada</th><th>Lote de producto</th><th>Llegó a</th></tr></thead>
+    <tbody>
+    {% for u in f.usos %}
+      <tr><td><a href="?q={{ u.orden.codigo }}">{{ u.orden.codigo }}</a><div class="help">{{ u.orden.tamano }}</div></td><td>{{ u.cantidad }}</td>
+        <td>{% if u.lote %}<a href="?q={{ u.lote.codigo }}">{{ u.lote.codigo }}</a> <span class="help">{{ u.lote.get_estado_display }}</span>{% else %}—{% endif %}</td>
+        <td>{% if u.clientes %}{{ u.clientes|join:", " }}{% else %}Aún en planta{% endif %}</td></tr>
+    {% empty %}
+      <tr><td colspan="4" class="muted">Este lote todavía no se ha usado en ninguna orden.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endfor %}
+{% endif %}
+{% endblock %}
