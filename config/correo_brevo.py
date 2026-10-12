@@ -40,6 +40,9 @@ class BrevoBackend(BaseEmailBackend):
             headers={"api-key": self.api_key, "Content-Type": "application/json", "Accept": "application/json"},
         )
         with urllib.request.urlopen(peticion, timeout=20) as respuesta:
+            cuerpo = respuesta.read().decode("utf-8", "ignore")
+            logger.info("[correo] Brevo aceptó el correo para %s · respuesta %s %s",
+                        ", ".join(mensaje.to), respuesta.status, cuerpo)
             return 200 <= respuesta.status < 300
 
     def send_messages(self, email_messages):
@@ -50,7 +53,7 @@ class BrevoBackend(BaseEmailBackend):
                     enviados += 1
             except (urllib.error.URLError, OSError) as error:
                 detalle = error.read().decode("utf-8", "ignore") if isinstance(error, urllib.error.HTTPError) else ""
-                logger.error("No se pudo enviar el correo por Brevo: %s %s", error, detalle)
+                logger.error("[correo] Brevo NO envió el correo a %s · %s · %s", ", ".join(mensaje.to), error, detalle)
                 if not self.fail_silently:
                     raise
         return enviados

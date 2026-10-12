@@ -152,11 +152,21 @@ STORAGES = {
 
 
 # Correo
-# Si en el .env están CORREO_USUARIO y CORREO_CLAVE, los correos se envían de verdad por Gmail.
-# Si no están, se muestran en la terminal (útil mientras se prueba).
+# 1. Si hay BREVO_API_KEY (en Render), los correos salen por la API de Brevo.
+# 2. Si no, y están CORREO_USUARIO y CORREO_CLAVE (en tu computador), salen por Gmail.
+# 3. Si no hay nada, se muestran en la terminal (útil mientras se prueba).
 CORREO_USUARIO = os.environ.get('CORREO_USUARIO', '')
 CORREO_CLAVE = os.environ.get('CORREO_CLAVE', '')
-if CORREO_USUARIO and CORREO_CLAVE:
+BREVO_API_KEY = os.environ.get('BREVO_API_KEY', '')
+if BREVO_API_KEY and CORREO_USUARIO:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'config.correo_brevo.BrevoBackend',
+            'OPTIONS': {'api_key': BREVO_API_KEY},
+        },
+    }
+    DEFAULT_FROM_EMAIL = f'Sistema PROLAC <{CORREO_USUARIO}>'
+elif CORREO_USUARIO and CORREO_CLAVE:
     MAILERS = {
         'default': {
             'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
@@ -178,6 +188,21 @@ else:
         },
     }
     DEFAULT_FROM_EMAIL = 'Sistema PROLAC <no-responder@prolac.local>'
+
+# Para revisar en los Logs de Render qué forma de correo quedó activa.
+print(f"[correo] Envío por: {MAILERS['default']['BACKEND'].rsplit('.', 2)[-2]} · remitente: {DEFAULT_FROM_EMAIL}", flush=True)
+
+# Mensajes de error y de envío de correo visibles en la terminal y en los Logs de Render.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'consola': {'class': 'logging.StreamHandler'}},
+    'loggers': {
+        'config.correo_brevo': {'handlers': ['consola'], 'level': 'INFO', 'propagate': False},
+        'django.contrib.auth': {'handlers': ['consola'], 'level': 'ERROR', 'propagate': False},
+        'django.request': {'handlers': ['consola'], 'level': 'ERROR', 'propagate': False},
+    },
+}
 
 # El enlace para crear una contraseña nueva vence en 30 minutos.
 PASSWORD_RESET_TIMEOUT = 60 * 30
