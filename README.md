@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://TU-APP.onrender.com"><b>Ver el sistema en línea</b></a>
+  <a href="https://inventario-prolac.onrender.com"><b>Ver el sistema en línea</b></a>
 </p>
 
 ---
