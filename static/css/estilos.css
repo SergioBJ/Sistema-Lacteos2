@@ -355,3 +355,9 @@ details[open] summary { margin-bottom: 10px; }
 .buscar-caja svg { position: absolute; left: 14px; color: #6A7571; pointer-events: none; }
 .buscar-caja input { padding-left: 42px !important; width: 100%; }
 .mono { font-family: 'IBM Plex Mono', monospace; font-size: 14px; }
+
+/* ---------- Gráficas: leyenda con color y paginación de compras ---------- */
+.ley-pill { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; color: #fff; font-size: 13px; font-weight: 600; }
+.compras-pie { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid #E9EEF4; padding-top: 12px; }
+.fila { grid-template-columns: 190px minmax(0, 1fr) 104px; }
+@media (max-width: 900px) { .fila { grid-template-columns: 1fr 104px; } }

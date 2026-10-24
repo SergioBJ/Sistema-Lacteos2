@@ -25,13 +25,13 @@
   {# 1. Entradas y salidas #}
   <section class="card graf">
     <div><h2>Entradas y salidas por semana</h2><p class="chs">{{ frase_sem }}</p></div>
-    <div class="leyenda"><span><i style="background: #2E4A78"></i>Entradas (llegadas de material)</span><span><i style="background: #7FA7D9"></i>Salidas (despachos a clientes)</span></div>
+    <div class="leyenda"><span><i style="background: #2A78D6"></i>Entradas (llegadas de material)</span><span><i style="background: #EB6834"></i>Salidas (despachos a clientes)</span></div>
     <div class="columnas">
       {% for s in semanas %}
       <div class="col" title="{{ s.nombre }}: {{ s.entradas }} llegadas, {{ s.salidas }} despachos">
         <div class="barras">
-          <div class="b" style="height: {{ s.h_ent }}%; background: #2E4A78"><span>{{ s.entradas }}</span></div>
-          <div class="b" style="height: {{ s.h_sal }}%; background: #7FA7D9"><span>{{ s.salidas }}</span></div>
+          <div class="b" style="height: {{ s.h_ent }}%; background: #2A78D6"><span>{{ s.entradas }}</span></div>
+          <div class="b" style="height: {{ s.h_sal }}%; background: #EB6834"><span>{{ s.salidas }}</span></div>
         </div>
         <div class="ax">{{ s.nombre }}</div>
       </div>
@@ -46,18 +46,18 @@
   {# 2. Etapas #}
   <section class="card graf">
     <div><h2>¿En qué etapa se frenan las cosas?</h2><p class="chs">{{ frase_etapas }}</p></div>
-    <div class="leyenda"><span><i style="background: #1F8A4C"></i>Pasó</span><span><i style="background: #C8382F"></i>No pasó</span></div>
+    <div class="leyenda"><span class="ley-pill" style="background: #1F8A4C">Cumple</span><span class="ley-pill" style="background: #C8382F">No cumple</span></div>
     <div class="filas">
       {% for e in etapas %}
-      <div class="fila" title="{{ e.nombre }}: {{ e.si }} pasaron, {{ e.no }} no pasaron">
+      <div class="fila" title="{{ e.nombre }}: {{ e.si }} cumple{{ e.si|pluralize:"n" }}, {{ e.no }} no cumple{{ e.no|pluralize:"n" }}">
         <span class="fila-n">{{ e.nombre }}</span>
         <div class="pista">{% if e.total %}<div style="width: 100%; display: flex"><div style="flex: {{ e.si }}; background: #1F8A4C"></div><div style="flex: {{ e.no }}; background: #C8382F"></div></div>{% endif %}</div>
-        <span class="fila-v"><b>{{ e.no }}</b> no</span>
+        <span class="fila-v"><b>{{ e.no }}</b> no cumple{{ e.no|pluralize:"n" }}</span>
       </div>
       {% endfor %}
     </div>
     <details><summary>Ver como tabla</summary>
-      <table><thead><tr><th>Etapa</th><th>Total</th><th>Pasó</th><th>No pasó</th><th>% no pasó</th></tr></thead>
+      <table><thead><tr><th>Etapa</th><th>Total</th><th>Cumple</th><th>No cumple</th><th>% no cumple</th></tr></thead>
         <tbody>{% for e in etapas %}<tr><td>{{ e.nombre }}</td><td>{{ e.total }}</td><td>{{ e.si }}</td><td>{{ e.no }}</td><td>{{ e.pct_no }} %</td></tr>{% endfor %}</tbody></table>
     </details>
   </section>
@@ -85,7 +85,7 @@
   </section>
 
   {# 4. Qué hay que comprar #}
-  <section class="card graf">
+  <section class="card graf" id="compras">
     <div><h2>¿Qué hay que comprar?</h2><p class="chs">{{ frase_compras }} La línea negra es el <b>stock mínimo</b>.</p></div>
     <div class="filas">
       {% for x in compras %}
@@ -99,6 +99,16 @@
       <p class="muted" style="margin: 0">No hay materiales con stock mínimo definido.</p>
       {% endfor %}
     </div>
+    {% if compras.paginator.num_pages > 1 %}
+    <div class="compras-pie">
+      <span class="help">Mostrando {{ compras.start_index }}–{{ compras.end_index }} de {{ total_compras }}{% if bajos %} · <b style="color: #734400">{{ bajos }} por comprar</b>{% endif %}</span>
+      <span class="pag-numeros">
+        {% if compras.has_previous %}<a class="pag" href="?{{ filtros_compras }}{% if filtros_compras %}&{% endif %}pag_compras={{ compras.previous_page_number }}#compras">← Anterior</a>{% else %}<span class="pag off">← Anterior</span>{% endif %}
+        <span class="pag on">{{ compras.number }} / {{ compras.paginator.num_pages }}</span>
+        {% if compras.has_next %}<a class="pag" href="?{{ filtros_compras }}{% if filtros_compras %}&{% endif %}pag_compras={{ compras.next_page_number }}#compras">Siguiente →</a>{% else %}<span class="pag off">Siguiente →</span>{% endif %}
+      </span>
+    </div>
+    {% endif %}
   </section>
 </div>
 

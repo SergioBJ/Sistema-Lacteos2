@@ -16,6 +16,7 @@ from usuarios.permisos import rol_requerido
 
 DIAS_ALERTA_VENCIMIENTO = 15
 POR_PAGINA = 15  # movimientos por página en el historial
+COMPRAS_POR_PAGINA = 6  # materiales por página en "¿Qué hay que comprar?"
 
 
 def inventario_producto_terminado():
@@ -346,12 +347,17 @@ def graficas(request):
         cant = stock.get(m.pk, Decimal("0"))
         if m.stock_minimo > 0 or cant > 0:
             compras.append({"m": m, "stock": cant, "minimo": m.stock_minimo, "bajo": cant < m.stock_minimo})
-    compras.sort(key=lambda x: (not x["bajo"], x["m"].nombre))
+    # Primero lo que está bajo el mínimo (el más crítico arriba); después lo que está bien.
+    compras.sort(key=lambda x: (not x["bajo"],
+                                float(x["stock"] / x["minimo"]) if x["minimo"] else 999, x["m"].nombre))
     tope = max([max(x["stock"], x["minimo"]) for x in compras] or [Decimal("1")]) or Decimal("1")
     for x in compras:
         x["ancho"] = float(x["stock"] / tope * 100)
         x["linea"] = float(x["minimo"] / tope * 100)
     bajos = sum(1 for x in compras if x["bajo"])
+    pagina_compras = Paginator(compras, COMPRAS_POR_PAGINA).get_page(request.GET.get("pag_compras"))
+    otros_filtros = request.GET.copy()
+    otros_filtros.pop("pag_compras", None)
 
     # 1. Entradas y salidas por semana del mes
     semanas = []
@@ -427,6 +433,8 @@ def graficas(request):
         "semanas": semanas, "frase_sem": frase_sem,
         "etapas": etapas, "frase_etapas": frase_etapas,
         "no_conformidades": no_conformidades, "frase_nc": frase_nc,
-        "compras": compras, "frase_compras": (f"{bajos} material{'es' if bajos != 1 else ''} no alcanza{'n' if bajos != 1 else ''} el stock mínimo: hay que comprar."
+        "compras": pagina_compras, "total_compras": len(compras), "bajos": bajos,
+        "filtros_compras": otros_filtros.urlencode(),
+        "frase_compras": (f"{bajos} material{'es' if bajos != 1 else ''} no alcanza{'n' if bajos != 1 else ''} el stock mínimo: hay que comprar."
                                               if bajos else "Todos los materiales están por encima del mínimo."),
     })
