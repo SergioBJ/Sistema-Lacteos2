@@ -3,98 +3,208 @@
 {% block contenido %}
 <div>
   <h1>Parámetros de calidad</h1>
-  <p class="sub">Cada material y cada tipo de producto tiene su propia lista. Al revisar, el sistema compara cada valor con su rango.</p>
+  <p class="sub">Define qué se mide en cada material y cuál es su rango. Revisar material y Liberar lote usan esta lista.</p>
 </div>
 
-{% if sin_parametros %}
-<div class="banner wa"><b>{{ sin_parametros }} sin parámetros.</b> No se pueden revisar hasta que les definas su lista. Salen en amarillo a la izquierda.</div>
-{% endif %}
-
-<div class="par-layout">
-  <section class="card par-lista">
-    <h2>Materiales</h2>
-    {% for titulo, items in grupos %}
-      <div class="navsec" style="margin: 6px 0 0">{{ titulo }}</div>
-      {% for m in items %}
-        <a class="par-item{% if campo == 'material' and destino.pk == m.pk %} on{% endif %}" href="?material={{ m.pk }}">
-          <span>{{ m.nombre }}</span>
-          {% if m.n %}<span class="pill bl">{{ m.n }}</span>{% else %}<span class="pill wa">Sin parámetros</span>{% endif %}
-        </a>
+<div class="cp-layout">
+  <div class="cp-izq">
+    <section class="card cp-lista">
+      <div>
+        <h2>Materiales</h2>
+        <p class="help" style="margin: 6px 0 0">Aparecen solos cuando el Gerente los crea. Los nuevos salen con <b>Sin parámetros</b> hasta que les llenes su lista.</p>
+      </div>
+      {% for titulo, items in grupos %}
+        <div class="cp-grupo">{{ titulo }}</div>
+        {% for m in items %}
+          <a class="cp-item{% if campo == 'material' and destino.pk == m.pk %} on{% endif %}" href="?material={{ m.pk }}">
+            <span class="cp-nom">{{ m.nombre }}</span>
+            {% if m.n %}<span class="pill ok">✓ {{ m.n }} parámetro{{ m.n|pluralize }}</span>{% else %}<span class="pill wa">Sin parámetros</span>{% endif %}
+          </a>
+        {% endfor %}
+      {% empty %}
+        <p class="muted">El Gerente todavía no ha creado materiales.</p>
       {% endfor %}
-    {% empty %}
-      <p class="muted">El Gerente todavía no ha creado materiales.</p>
-    {% endfor %}
+    </section>
 
-    <h2 style="margin-top: 14px">Producto terminado</h2>
-    <p class="help" style="margin: -10px 0 0">Por tipo de producto: sirve para todas sus marcas y tamaños.</p>
-    {% for t in tipos %}
-      <a class="par-item{% if campo == 'tipo_producto' and destino.pk == t.pk %} on{% endif %}" href="?tipo={{ t.pk }}">
-        <span>{{ t.nombre }}</span>
-        {% if t.n %}<span class="pill bl">{{ t.n }}</span>{% else %}<span class="pill wa">Sin parámetros</span>{% endif %}
-      </a>
-    {% empty %}
-      <p class="muted">El Gerente todavía no ha creado productos.</p>
-    {% endfor %}
-  </section>
+    <section class="card cp-lista">
+      <h2>Productos terminados</h2>
+      {% for t in tipos %}
+        <a class="cp-item{% if campo == 'tipo_producto' and destino.pk == t.pk %} on{% endif %}" href="?tipo={{ t.pk }}">
+          <span class="cp-nom">{{ t.nombre }}</span>
+          {% if t.n %}<span class="pill ok">✓ {{ t.n }} parámetro{{ t.n|pluralize }}</span>{% else %}<span class="pill wa">Sin parámetros</span>{% endif %}
+        </a>
+      {% empty %}
+        <p class="muted">El Gerente todavía no ha creado productos.</p>
+      {% endfor %}
+      <p class="help" style="margin: 4px 0 0">Una lista por tipo de producto. Sirve para todas sus marcas y tamaños.</p>
+    </section>
+  </div>
 
-  <div style="display: flex; flex-direction: column; gap: 22px; min-width: 0">
-    {% if not destino %}
-      <section class="card"><p class="muted" style="margin: 0">Elige a la izquierda un material o un producto para ver y editar sus parámetros.</p></section>
-    {% else %}
+  <div class="cp-der">
+  {% if not destino %}
+    <section class="card"><p class="muted" style="margin: 0">Todavía no hay materiales ni productos. Aparecerán aquí cuando el Gerente los cree.</p></section>
+  {% else %}
+    <form method="post" id="form-par" class="cp-der" novalidate>
+      {% csrf_token %}
       <section class="card">
-        <div>
-          <h2>{{ destino }}</h2>
-          <p class="help" style="margin: 4px 0 0">{% if campo == 'material' %}{{ destino.get_tipo_display }}{% else %}Producto terminado{% endif %}</p>
+        <div class="cp-cab">
+          <div>
+            <h2 style="font-size: 19px">{{ destino.nombre }}</h2>
+            <p class="help" style="margin: 4px 0 0">{% if campo == 'material' %}{{ destino.codigo }} · {{ destino.get_tipo_display }}{% else %}Producto terminado{% endif %} · {{ lista|length }} parámetro{{ lista|length|pluralize }} activo{{ lista|length|pluralize }}</p>
+          </div>
+          {% if fuentes %}
+          <details class="cp-copiar">
+            <summary class="btn sec">Copiar de otro {% if campo == 'material' %}material{% else %}producto{% endif %}</summary>
+            <div class="cp-menu">
+              <p class="help" style="margin: 0 0 6px">Se agregan a la lista los que falten. Nada se guarda hasta que pulses Guardar.</p>
+              {% for clase, f in fuentes %}
+                <a href="?{{ clave }}={{ destino.pk }}&copiar={{ clase }}-{{ f.pk }}">{{ f.nombre }} <span class="muted">· {{ f.n }}</span></a>
+              {% endfor %}
+            </div>
+          </details>
+          {% endif %}
         </div>
-        <table>
-          <thead><tr><th>Parámetro</th><th>Cómo se evalúa</th><th>Mínimo</th><th>Máximo</th><th>Unidad</th><th>Estado</th><th></th></tr></thead>
-          <tbody>
-          {% for p in lista %}
-            <tr{% if editando and editando.pk == p.pk %} style="background: #F2F6FC"{% endif %}>
-              <td><b>{{ p.nombre }}</b></td>
-              <td>{{ p.metodo|default:"—" }}</td>
-              <td>{% if p.minimo is not None %}{{ p.minimo|floatformat:"-3" }}{% else %}—{% endif %}</td>
-              <td>{% if p.maximo is not None %}{{ p.maximo|floatformat:"-3" }}{% else %}—{% endif %}</td>
-              <td>{{ p.unidad|default:"—" }}</td>
-              <td>{% if p.activo %}<span class="pill ok">Activo</span>{% else %}<span class="pill ne">Inactivo</span>{% endif %}</td>
-              <td>
-                <div class="acts">
-                  <a class="lk" href="?{{ clave }}={{ destino.pk }}&editar={{ p.pk }}#formulario">Editar</a>
-                  <form method="post" action="{% url 'calidad_parametros_estado' p.pk %}">
-                    {% csrf_token %}
-                    <button class="lk" type="submit">{% if p.activo %}Desactivar{% else %}Activar{% endif %}</button>
-                  </form>
-                </div>
-              </td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="7" class="muted">Todavía no tiene parámetros. Agrega el primero abajo.</td></tr>
+
+        {% if copiado %}
+          <div class="banner bl">{% if copiado.1 %}Se copiaron <b>{{ copiado.1 }}</b> parámetro{{ copiado.1|pluralize }} de {{ copiado.0 }}. Revisa los rangos y pulsa <b>Guardar parámetros</b>.{% else %}{{ copiado.0 }} no tiene parámetros que falten aquí.{% endif %}</div>
+        {% endif %}
+        {% if errores %}<div class="banner no">Hay filas con errores (marcadas en rojo). Corrígelas y vuelve a guardar.</div>{% endif %}
+
+        <div class="cp-tabla">
+          <div class="cp-fila cp-head"><span>Parámetro</span><span>Cómo se evalúa</span><span>Mínimo</span><span>Máximo</span><span>Unidad</span><span></span></div>
+          <div id="filas">
+          {% for f in filas %}
+            <div class="cp-fila{% if f.quitar %} quitada{% endif %}{% if f.error %} con-error{% endif %}" data-fila>
+              <input type="hidden" name="fila" value="{{ f.i }}">
+              <input type="hidden" name="id_{{ f.i }}" value="{{ f.id }}">
+              <input type="hidden" name="quitar_{{ f.i }}" value="{% if f.quitar %}1{% endif %}" data-quitar>
+              <label class="cp-c"><span class="cp-lab">Parámetro</span><input type="text" name="nombre_{{ f.i }}" value="{{ f.nombre }}" maxlength="100" placeholder="Ej.: Acidez"></label>
+              <label class="cp-c"><span class="cp-lab">Cómo se evalúa</span>
+                <select name="modo_{{ f.i }}" data-modo>
+                  {% for m in modos %}<option value="{{ m }}"{% if m == f.modo %} selected{% endif %}>{{ m }}</option>{% endfor %}
+                </select></label>
+              <label class="cp-c"><span class="cp-lab">Mínimo</span><input type="text" inputmode="decimal" name="min_{{ f.i }}" value="{{ f.min }}" data-min></label>
+              <label class="cp-c"><span class="cp-lab">Máximo</span><input type="text" inputmode="decimal" name="max_{{ f.i }}" value="{{ f.max }}" data-max></label>
+              <label class="cp-c"><span class="cp-lab">Unidad</span><input type="text" name="unidad_{{ f.i }}" value="{{ f.unidad }}" maxlength="20" placeholder="%" data-unidad></label>
+              <button type="button" class="cp-x" data-x title="Quitar de la lista" aria-label="Quitar {{ f.nombre|default:'fila' }}">×</button>
+              {% if f.error %}<div class="cp-err">{{ f.error }}</div>{% endif %}
+            </div>
           {% endfor %}
-          </tbody>
-        </table>
+          </div>
+        </div>
+
+        <button type="button" class="cp-agregar" id="agregar">+ Agregar parámetro</button>
+
+        <p class="help" style="margin: 0"><b>Cómo se evalúa:</b> Máximo · Mínimo · Entre mínimo y máximo · Positivo / Negativo · Característico (sí / no). Las casillas grises no aplican para esa opción. Al quitar un parámetro queda desactivado: las revisiones viejas no se pierden.</p>
+
+        {% if inactivos %}
+        <div class="cp-inactivos">
+          <div class="cp-grupo" style="margin: 0">Desactivados</div>
+          {% for p in inactivos %}
+            <div class="cp-inact"><span><b>{{ p.nombre }}</b> <span class="muted">· {{ p.rango_texto }}</span></span>
+              <button class="lk" type="submit" form="activar-{{ p.pk }}">Activar</button></div>
+          {% endfor %}
+        </div>
+        {% endif %}
       </section>
 
-      <section class="card" id="formulario">
-        <h2>{% if editando %}Editar · {{ editando.nombre }}{% else %}Agregar parámetro{% endif %}</h2>
-        {% if form.non_field_errors %}<div class="banner no">{% for e in form.non_field_errors %}{{ e }} {% endfor %}</div>{% endif %}
-        <form method="post" style="display: flex; flex-direction: column; gap: 18px">
-          {% csrf_token %}
-          <div class="g2">
-            {% include "parciales/campo.html" with campo=form.nombre %}
-            {% include "parciales/campo.html" with campo=form.metodo %}
+      <section class="card">
+        <div class="cp-cab">
+          <h2>Así lo verá en {% if campo == 'material' %}Revisar material{% else %}Liberar lote{% endif %}</h2>
+          <span class="muted" style="font-size: 14px">🔒 Vista previa</span>
+        </div>
+        {% for p in vista_previa %}
+          <div class="cp-prev">
+            <div><div class="vname">{{ p.nombre }}</div><div class="vrange">{{ p.rango_texto }}</div></div>
+            {% if p.es_si_no %}
+              <select disabled><option>{% if p.modo == "Positivo / Negativo" %}Negativo / Positivo{% else %}Sí cumple / No cumple{% endif %}</option></select>
+            {% else %}
+              <div class="cp-valor"><span>valor</span><span>{{ p.unidad }}</span></div>
+            {% endif %}
+            <span class="pill ne">Se evalúa al escribir</span>
           </div>
-          <div class="g3">
-            {% include "parciales/campo.html" with campo=form.minimo %}
-            {% include "parciales/campo.html" with campo=form.maximo %}
-            {% include "parciales/campo.html" with campo=form.unidad %}
-          </div>
-          <div class="btns">
-            {% if editando %}<a class="btn sec" href="?{{ clave }}={{ destino.pk }}" style="display: inline-flex; align-items: center; text-decoration: none">Cancelar</a>{% endif %}
-            <button class="btn" type="submit" style="background: #5A3D8A">{% if editando %}Guardar cambios{% else %}Agregar parámetro{% endif %}</button>
-          </div>
-        </form>
+        {% empty %}
+          <p class="muted" style="margin: 0">Cuando guardes parámetros, aquí verás cómo aparecen al revisar.</p>
+        {% endfor %}
+        {% if lista|length > 2 %}<p class="help" style="margin: 0">…y los demás parámetros de la lista.</p>{% endif %}
       </section>
-    {% endif %}
+
+      <div class="cp-sistema">🔒 <span><b>Lo completa el sistema:</b> cada vez que guardas, tu nombre y la fecha quedan en el historial · las revisiones ya hechas conservan su resultado.</span></div>
+
+      <div class="btns">
+        <a class="btn sec" href="?{{ clave }}={{ destino.pk }}" style="display: inline-flex; align-items: center; text-decoration: none">Cancelar</a>
+        <button class="btn" type="submit" style="background: #5A3D8A">Guardar parámetros</button>
+      </div>
+    </form>
+
+    {% for p in inactivos %}
+      <form method="post" action="{% url 'calidad_parametros_estado' p.pk %}" id="activar-{{ p.pk }}" hidden>{% csrf_token %}</form>
+    {% endfor %}
+
+    <template id="fila-nueva">
+      <div class="cp-fila" data-fila>
+        <input type="hidden" name="fila" value="__i__">
+        <input type="hidden" name="id___i__" value="">
+        <input type="hidden" name="quitar___i__" value="" data-quitar>
+        <label class="cp-c"><span class="cp-lab">Parámetro</span><input type="text" name="nombre___i__" maxlength="100" placeholder="Ej.: Acidez"></label>
+        <label class="cp-c"><span class="cp-lab">Cómo se evalúa</span>
+          <select name="modo___i__" data-modo>{% for m in modos %}<option value="{{ m }}">{{ m }}</option>{% endfor %}</select></label>
+        <label class="cp-c"><span class="cp-lab">Mínimo</span><input type="text" inputmode="decimal" name="min___i__" data-min></label>
+        <label class="cp-c"><span class="cp-lab">Máximo</span><input type="text" inputmode="decimal" name="max___i__" data-max></label>
+        <label class="cp-c"><span class="cp-lab">Unidad</span><input type="text" name="unidad___i__" maxlength="20" placeholder="%" data-unidad></label>
+        <button type="button" class="cp-x" data-x title="Quitar de la lista" aria-label="Quitar fila">×</button>
+      </div>
+    </template>
+
+    <script>
+    (function () {
+      var siguiente = {{ siguiente }};
+      var cont = document.getElementById("filas");
+      var usa = {
+        "Máximo": [false, true, true], "Mínimo": [true, false, true],
+        "Entre mínimo y máximo": [true, true, true],
+        "Positivo / Negativo": [false, false, false], "Característico": [false, false, false]
+      };
+      function ajustar(fila) {
+        var modo = fila.querySelector("[data-modo]").value;
+        var u = usa[modo] || [true, true, true];
+        [["[data-min]", u[0]], ["[data-max]", u[1]], ["[data-unidad]", u[2]]].forEach(function (par) {
+          var inp = fila.querySelector(par[0]);
+          inp.readOnly = !par[1];
+          inp.classList.toggle("na", !par[1]);
+          inp.tabIndex = par[1] ? 0 : -1;
+          if (!par[1]) { inp.dataset.guardado = inp.value || inp.dataset.guardado || ""; inp.value = ""; inp.placeholder = "—"; }
+          else { if (!inp.value && inp.dataset.guardado) inp.value = inp.dataset.guardado; inp.placeholder = par[0] === "[data-unidad]" ? "%" : ""; }
+        });
+      }
+      function preparar(fila) {
+        fila.querySelector("[data-modo]").addEventListener("change", function () { ajustar(fila); });
+        fila.querySelector("[data-x]").addEventListener("click", function () {
+          var id = fila.querySelector('input[name^="id_"]').value;
+          if (!id) { fila.remove(); return; }  // fila nueva: se borra
+          var q = fila.querySelector("[data-quitar]");
+          var quitar = q.value !== "1";
+          q.value = quitar ? "1" : "";
+          fila.classList.toggle("quitada", quitar);
+          this.textContent = quitar ? "↺" : "×";
+          this.title = quitar ? "Deshacer" : "Quitar de la lista";
+        });
+        if (fila.classList.contains("quitada")) { fila.querySelector("[data-x]").textContent = "↺"; }
+        ajustar(fila);
+      }
+      cont.querySelectorAll("[data-fila]").forEach(preparar);
+      document.getElementById("agregar").addEventListener("click", function () {
+        var html = document.getElementById("fila-nueva").innerHTML.replace(/__i__/g, String(siguiente++));
+        var tmp = document.createElement("div");
+        tmp.innerHTML = html.trim();
+        var fila = tmp.firstElementChild;
+        cont.appendChild(fila);
+        preparar(fila);
+        fila.querySelector('input[type="text"]').focus();
+      });
+    })();
+    </script>
+  {% endif %}
   </div>
 </div>
 {% endblock %}

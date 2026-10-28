@@ -34,6 +34,44 @@ class Parametro(models.Model):
     def __str__(self):
         return f"{self.material or self.tipo_producto} · {self.nombre}"
 
+    # "Cómo se evalúa": se guarda en el campo metodo con uno de estos textos.
+    MAXIMO, MINIMO, ENTRE = "Máximo", "Mínimo", "Entre mínimo y máximo"
+    POSNEG, CARACTERISTICO = "Positivo / Negativo", "Característico"
+    MODOS = [MAXIMO, MINIMO, ENTRE, POSNEG, CARACTERISTICO]
+    MODOS_SI_NO = [POSNEG, CARACTERISTICO]
+
+    @property
+    def modo(self):
+        """Cómo se evalúa. Si es un parámetro viejo sin modo, se deduce de sus límites."""
+        if self.metodo in self.MODOS:
+            return self.metodo
+        if self.minimo is not None and self.maximo is not None:
+            return self.ENTRE
+        return self.MINIMO if self.minimo is not None else self.MAXIMO
+
+    @property
+    def es_si_no(self):
+        return self.modo in self.MODOS_SI_NO
+
+    @property
+    def rango_texto(self):
+        """El rango en palabras: 'Máximo 0,3 %', 'Entre 34 y 38 °C', 'Debe salir negativo'..."""
+        def n(v):
+            return f"{v.normalize():f}".replace(".", ",")
+        u = f" {self.unidad}" if self.unidad else ""
+        modo = self.modo
+        if modo == self.POSNEG:
+            return "Debe salir negativo"
+        if modo == self.CARACTERISTICO:
+            return "Debe ser característico (sí / no)"
+        if modo == self.ENTRE and self.minimo is not None and self.maximo is not None:
+            return f"Entre {n(self.minimo)} y {n(self.maximo)}{u}"
+        if self.maximo is not None and self.minimo is None:
+            return f"Máximo {n(self.maximo)}{u}"
+        if self.minimo is not None and self.maximo is None:
+            return f"Mínimo {n(self.minimo)}{u}"
+        return "Sin rango"
+
     def en_rango(self, valor):
         if self.minimo is not None and valor < self.minimo:
             return False

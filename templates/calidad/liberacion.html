@@ -33,10 +33,16 @@
         <div class="vrow">
           <div>
             <div class="vname">{{ f.p.nombre }}</div>
-            <div class="vrange">Rango: {% if f.p.minimo is not None %}{{ f.p.minimo|floatformat:"-3" }}{% else %}sin mínimo{% endif %} a {% if f.p.maximo is not None %}{{ f.p.maximo|floatformat:"-3" }}{% else %}sin máximo{% endif %} {{ f.p.unidad }}{% if f.p.metodo %} · {{ f.p.metodo }}{% endif %}</div>
+            <div class="vrange">{{ f.p.rango_texto }}</div>
           </div>
           <div class="f" style="flex-direction: row; align-items: center; gap: 8px">
-            <input type="text" inputmode="decimal" name="p_{{ f.p.pk }}" value="{{ f.valor }}" data-param="{{ f.p.pk }}" aria-label="Valor de {{ f.p.nombre }}">
+            {% if f.p.es_si_no %}
+            <select name="p_{{ f.p.pk }}" data-param="{{ f.p.pk }}" aria-label="Resultado de {{ f.p.nombre }}">
+              <option value="">Elige…</option>
+              {% if f.p.modo == "Positivo / Negativo" %}<option value="0"{% if f.valor == "0" %} selected{% endif %}>Negativo</option><option value="1"{% if f.valor == "1" %} selected{% endif %}>Positivo</option>
+              {% else %}<option value="1"{% if f.valor == "1" %} selected{% endif %}>Sí cumple</option><option value="0"{% if f.valor == "0" %} selected{% endif %}>No cumple</option>{% endif %}
+            </select>
+            {% else %}<input type="text" inputmode="decimal" name="p_{{ f.p.pk }}" value="{{ f.valor }}" data-param="{{ f.p.pk }}" aria-label="Valor de {{ f.p.nombre }}">{% endif %}
             <span class="muted" style="min-width: 36px">{{ f.p.unidad }}</span>
           </div>
           <div class="resultado" id="res-{{ f.p.pk }}">
@@ -100,7 +106,7 @@
       else if (vacios > 0) { aviso.className = "banner bl"; aviso.textContent = "Faltan " + vacios + " valor(es) por escribir."; }
       else { aviso.className = "banner ok"; aviso.textContent = "Todo dentro del rango. Puedes liberar el lote."; }
     }
-    inputs.forEach(function (i) { i.addEventListener("input", evaluar); });
+    inputs.forEach(function (i) { i.addEventListener("input", evaluar); i.addEventListener("change", evaluar); });
     evaluar();
   })();
   </script>

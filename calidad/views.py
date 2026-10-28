@@ -9,7 +9,6 @@ from catalogo.models import Material, TipoProducto
 from inventario.historial import registrar
 from usuarios.permisos import rol_requerido
 
-from .forms import ParametroForm
 from .models import Parametro
 
 
@@ -22,52 +21,210 @@ def _destino_desde(request):
     return None, None
 
 
+def _txt(valor):
+    """Número guardado -> texto con coma para mostrar en la casilla."""
+    if valor is None:
+        return ""
+    return f"{valor.normalize():f}".replace(".", ",")
+
+
+def _numero(texto):
+    """Texto con coma o punto -> Decimal, o None si está vacío o no es número."""
+    from decimal import Decimal, InvalidOperation
+    t = (texto or "").strip().replace(" ", "")
+    if not t:
+        return None
+    if "," in t and "." in t:
+        t = t.replace(".", "").replace(",", ".")
+    else:
+        t = t.replace(",", ".")
+    try:
+        n = Decimal(t)
+    except InvalidOperation:
+        return None
+    if not n.is_finite() or abs(n) >= Decimal("1000000000"):
+        return None
+    return n.quantize(Decimal("0.001"))
+
+
+def _fila(p, i):
+    return {"i": i, "id": p.pk if p.pk else "", "nombre": p.nombre, "modo": p.modo,
+            "min": _txt(p.minimo), "max": _txt(p.maximo), "unidad": p.unidad, "quitar": False, "error": ""}
+
+
+def _leer_filas(post):
+    filas = []
+    for i in post.getlist("fila"):
+        filas.append({
+            "i": i, "id": post.get(f"id_{i}", "").strip(), "nombre": post.get(f"nombre_{i}", "").strip(),
+            "modo": post.get(f"modo_{i}", ""), "min": post.get(f"min_{i}", "").strip(),
+            "max": post.get(f"max_{i}", "").strip(), "unidad": post.get(f"unidad_{i}", "").strip(),
+            "quitar": post.get(f"quitar_{i}") == "1", "error": "",
+        })
+    return filas
+
+
+def _validar_fila(f):
+    """Revisa una fila y devuelve (minimo, maximo, unidad) listos para guardar. Pone f['error'] si algo falla."""
+    modo = f["modo"]
+    if not f["nombre"]:
+        f["error"] = "Escribe el nombre del parámetro."
+        return None
+    if len(f["nombre"]) > 100 or len(f["unidad"]) > 20:
+        f["error"] = "El nombre (máx. 100 letras) o la unidad (máx. 20) son muy largos."
+        return None
+    if modo not in Parametro.MODOS:
+        f["error"] = "Elige cómo se evalúa."
+        return None
+    if modo == Parametro.POSNEG:
+        return None, 0, ""
+    if modo == Parametro.CARACTERISTICO:
+        return 1, None, ""
+    minimo = _numero(f["min"]) if modo in (Parametro.MINIMO, Parametro.ENTRE) else None
+    maximo = _numero(f["max"]) if modo in (Parametro.MAXIMO, Parametro.ENTRE) else None
+    if modo in (Parametro.MINIMO, Parametro.ENTRE) and minimo is None:
+        f["error"] = "Escribe un mínimo válido (solo números)."
+        return None
+    if modo in (Parametro.MAXIMO, Parametro.ENTRE) and maximo is None:
+        f["error"] = "Escribe un máximo válido (solo números)."
+        return None
+    if modo == Parametro.ENTRE and minimo > maximo:
+        f["error"] = "El mínimo no puede ser mayor que el máximo."
+        return None
+    return minimo, maximo, f["unidad"]
+
+
 @rol_requerido("CALIDAD")
 def parametros(request):
     campo, destino = _destino_desde(request)
     activos = Count("parametros", filter=Q(parametros__activo=True))
-    materiales = Material.objects.filter(activo=True).annotate(n=activos).order_by("tipo", "nombre")
-    tipos = TipoProducto.objects.annotate(n=activos).order_by("nombre")
+    materiales = list(Material.objects.filter(activo=True).annotate(n=activos).order_by("tipo", "nombre"))
+    tipos = list(TipoProducto.objects.annotate(n=activos).order_by("nombre"))
 
-    form = None
-    editando = None
-    lista = []
+    if destino is None:  # sin elegir: abre el primero que falte por llenar, o el primero de la lista
+        primero = next((m for m in materiales if m.n == 0), None) or (materiales[0] if materiales else None)
+        if primero is None:
+            primero = next((t for t in tipos if t.n == 0), None) or (tipos[0] if tipos else None)
+        if primero is not None:
+            campo = "material" if isinstance(primero, Material) else "tipo_producto"
+            destino = primero
+
+    clave = "material" if campo == "material" else "tipo"
+    filas, inactivos, copiado, errores, lista = [], [], None, False, []
     if destino is not None:
         filtro = {campo: destino}
-        lista = Parametro.objects.filter(**filtro).order_by("-activo", "nombre")
-        if request.GET.get("editar"):
-            editando = get_object_or_404(Parametro, pk=request.GET["editar"], **filtro)
+        lista = list(Parametro.objects.filter(activo=True, **filtro).order_by("nombre"))
+        inactivos = list(Parametro.objects.filter(activo=False, **filtro).order_by("nombre"))
 
         if request.method == "POST":
-            form = ParametroForm(request.POST, instance=editando, destino=filtro)
-            if form.is_valid():
-                with transaction.atomic():
-                    p = form.save()
-                    verbo = "editó" if editando else "agregó"
-                    registrar(request.user, "ADMINISTRACION",
-                              f"{verbo} el parámetro {p.nombre} de {destino}"[:255], True, f"PAR-{p.pk}")
-                messages.success(request, f"Se guardó el parámetro {p.nombre} de {destino}.")
-                return redirect(request.path + f"?{'material' if campo == 'material' else 'tipo'}={destino.pk}")
-        else:
-            form = ParametroForm(instance=editando, destino=filtro)
+            filas = _leer_filas(request.POST)
+            existentes = {str(p.pk): p for p in lista}
+            nombres_inactivos = {p.nombre.lower(): p for p in inactivos}
+            vistos = set()
+            cambios = []  # (fila, parametro o None, minimo, maximo, unidad)
+            for f in filas:
+                actual = existentes.get(f["id"]) if f["id"] else None
+                if f["id"] and actual is None:
+                    f["error"] = "Este parámetro ya no existe. Recarga la página."
+                    continue
+                if f["quitar"]:
+                    if actual is not None:
+                        cambios.append((f, actual, None, None, None))
+                    continue
+                if actual is None and not (f["nombre"] or f["min"] or f["max"] or f["unidad"]):
+                    continue  # fila nueva vacía: se ignora
+                valores = _validar_fila(f)
+                if valores is None:
+                    continue
+                nombre = f["nombre"].lower()
+                if nombre in vistos:
+                    f["error"] = "Este nombre está repetido en la lista."
+                    continue
+                if nombre in nombres_inactivos:
+                    f["error"] = "Ya existe desactivado. Actívalo abajo en vez de crearlo otra vez."
+                    continue
+                vistos.add(nombre)
+                cambios.append((f, actual, *valores))
 
-    sin_parametros = sum(1 for m in materiales if m.n == 0) + sum(1 for t in tipos if t.n == 0)
+            errores = any(f["error"] for f in filas)
+            if not errores:
+                agregados = editados = quitados = 0
+                with transaction.atomic():
+                    for f, p, minimo, maximo, unidad in cambios:
+                        if f["quitar"]:
+                            p.activo = False
+                            p.save(update_fields=["activo"])
+                            quitados += 1
+                            continue
+                        if p is None:
+                            p = Parametro(**filtro)
+                            agregados += 1
+                        else:
+                            antes = (p.nombre, p.metodo, p.minimo, p.maximo, p.unidad)
+                        p.nombre, p.metodo, p.unidad = f["nombre"], f["modo"], unidad
+                        p.minimo = None if minimo is None else _numero(str(minimo))
+                        p.maximo = None if maximo is None else _numero(str(maximo))
+                        if p.pk:
+                            if antes == (p.nombre, p.metodo, p.minimo, p.maximo, p.unidad):
+                                continue
+                            editados += 1
+                        p.save()
+                    if agregados or editados or quitados:
+                        partes = [t for t in (f"{agregados} agregados" if agregados else "",
+                                              f"{editados} editados" if editados else "",
+                                              f"{quitados} desactivados" if quitados else "") if t]
+                        registrar(request.user, "ADMINISTRACION",
+                                  f"actualizó los parámetros de {destino} ({', '.join(partes)})"[:255],
+                                  True, getattr(destino, "codigo", "") or f"TP-{destino.pk}")
+                if agregados or editados or quitados:
+                    messages.success(request, f"Se guardaron los parámetros de {destino.nombre}.")
+                else:
+                    messages.success(request, "No había cambios por guardar.")
+                return redirect(request.path + f"?{clave}={destino.pk}")
+        else:
+            filas = [_fila(p, n) for n, p in enumerate(lista)]
+            origen = request.GET.get("copiar", "")
+            if "-" in origen:
+                tipo_origen, pk_origen = origen.split("-", 1)
+                modelo = {"material": Material, "tipo": TipoProducto}.get(tipo_origen)
+                fuente = modelo.objects.filter(pk=pk_origen).first() if modelo and pk_origen.isdigit() else None
+                if fuente is not None and fuente != destino:
+                    campo_fuente = "material" if modelo is Material else "tipo_producto"
+                    ya = {f["nombre"].lower() for f in filas} | {p.nombre.lower() for p in inactivos}
+                    nuevos = [p for p in Parametro.objects.filter(activo=True, **{campo_fuente: fuente}).order_by("nombre")
+                              if p.nombre.lower() not in ya]
+                    for p in nuevos:
+                        fila = _fila(p, len(filas))
+                        fila["id"] = ""
+                        filas.append(fila)
+                    copiado = (fuente.nombre, len(nuevos))
+            if not filas:
+                filas = [{"i": 0, "id": "", "nombre": "", "modo": Parametro.MAXIMO, "min": "", "max": "",
+                          "unidad": "", "quitar": False, "error": ""}]
+
     grupos = []
     for tipo_valor, tipo_texto in Material.Tipo.choices:
         items = [m for m in materiales if m.tipo == tipo_valor]
         if items:
             grupos.append((tipo_texto, items))
+    fuentes = ([("material", m) for m in materiales if m.n and not (campo == "material" and m == destino)]
+               + [("tipo", t) for t in tipos if t.n and not (campo == "tipo_producto" and t == destino)])
 
     return render(request, "calidad/parametros.html", {
         "grupos": grupos,
         "tipos": tipos,
         "campo": campo,
         "destino": destino,
+        "clave": clave,
+        "filas": filas,
+        "siguiente": max([int(f["i"]) for f in filas if str(f["i"]).isdigit()] + [-1]) + 1,
         "lista": lista,
-        "form": form,
-        "editando": editando,
-        "sin_parametros": sin_parametros,
-        "clave": "material" if campo == "material" else "tipo",
+        "vista_previa": lista[:2],
+        "inactivos": inactivos,
+        "fuentes": fuentes,
+        "copiado": copiado,
+        "errores": errores,
+        "modos": Parametro.MODOS,
     })
 
 
@@ -173,7 +330,7 @@ def revision(request, pk):
                 errores.append(f"Falta el valor de {p.nombre}.")
             elif not dentro:
                 fuera.append(f"{p.nombre} {_fmt(valor)}{(' ' + p.unidad) if p.unidad else ''} "
-                             f"(rango {_fmt(p.minimo)} a {_fmt(p.maximo)})")
+                             f"({p.rango_texto})")
 
         if accion == "aprobar" and fuera:
             errores.append("Hay valores fuera del rango: no se puede aprobar. Solo se puede rechazar.")
@@ -256,7 +413,7 @@ def liberacion(request, pk):
                 errores.append(f"Falta el valor de {p.nombre}.")
             elif not dentro:
                 fuera.append(f"{p.nombre} {_fmt(valor)}{(' ' + p.unidad) if p.unidad else ''} "
-                             f"(rango {_fmt(p.minimo)} a {_fmt(p.maximo)})")
+                             f"({p.rango_texto})")
         if accion == "aprobar" and fuera:
             errores.append("Hay valores fuera del rango: no se puede liberar. Solo se puede marcar como no conforme.")
         if accion == "rechazar" and not fuera and not motivo_extra:
