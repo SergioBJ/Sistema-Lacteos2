@@ -350,10 +350,16 @@ def graficas(request):
     # Primero lo que está bajo el mínimo (el más crítico arriba); después lo que está bien.
     compras.sort(key=lambda x: (not x["bajo"],
                                 float(x["stock"] / x["minimo"]) if x["minimo"] else 999, x["m"].nombre))
-    tope = max([max(x["stock"], x["minimo"]) for x in compras] or [Decimal("1")]) or Decimal("1")
+    # Cada fila tiene su propia escala: la línea del mínimo siempre queda en el mismo sitio (60 % del ancho)
+    # y la barra se compara con ella. Así no importa si un material se mide en miles de litros y otro en kilos.
+    LINEA = 60
     for x in compras:
-        x["ancho"] = float(x["stock"] / tope * 100)
-        x["linea"] = float(x["minimo"] / tope * 100)
+        if x["minimo"]:
+            x["linea"] = LINEA
+            x["ancho"] = min(float(x["stock"] / x["minimo"]) * LINEA, 100)
+        else:
+            x["linea"] = None
+            x["ancho"] = 100
     bajos = sum(1 for x in compras if x["bajo"])
     pagina_compras = Paginator(compras, COMPRAS_POR_PAGINA).get_page(request.GET.get("pag_compras"))
     otros_filtros = request.GET.copy()

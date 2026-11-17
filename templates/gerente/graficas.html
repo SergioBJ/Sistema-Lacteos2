@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load l10n %}
 {% block titulo %}Gráficas{% endblock %}
 {% block contenido %}
 <div>
@@ -30,8 +31,8 @@
       {% for s in semanas %}
       <div class="col" title="{{ s.nombre }}: {{ s.entradas }} llegadas, {{ s.salidas }} despachos">
         <div class="barras">
-          <div class="b" style="height: {{ s.h_ent }}%; background: #2A78D6"><span>{{ s.entradas }}</span></div>
-          <div class="b" style="height: {{ s.h_sal }}%; background: #EB6834"><span>{{ s.salidas }}</span></div>
+          <div class="b" style="height: {{ s.h_ent|unlocalize }}%; background: #2A78D6"><span>{{ s.entradas }}</span></div>
+          <div class="b" style="height: {{ s.h_sal|unlocalize }}%; background: #EB6834"><span>{{ s.salidas }}</span></div>
         </div>
         <div class="ax">{{ s.nombre }}</div>
       </div>
@@ -51,7 +52,7 @@
       {% for e in etapas %}
       <div class="fila" title="{{ e.nombre }}: {{ e.si }} cumple{{ e.si|pluralize:"n" }}, {{ e.no }} no cumple{{ e.no|pluralize:"n" }}">
         <span class="fila-n">{{ e.nombre }}</span>
-        <div class="pista">{% if e.total %}<div style="width: 100%; display: flex"><div style="flex: {{ e.si }}; background: #1F8A4C"></div><div style="flex: {{ e.no }}; background: #C8382F"></div></div>{% endif %}</div>
+        <div class="pista">{% if e.total %}<div style="width: 100%; display: flex"><div style="flex: {{ e.si|unlocalize }}; background: #1F8A4C"></div><div style="flex: {{ e.no|unlocalize }}; background: #C8382F"></div></div>{% endif %}</div>
         <span class="fila-v"><b>{{ e.no }}</b> no cumple{{ e.no|pluralize:"n" }}</span>
       </div>
       {% endfor %}
@@ -69,7 +70,7 @@
       {% for c in no_conformidades %}
       <div class="fila fila-nc">
         <span class="fila-n">{{ c.nombre }}<small>Etapa: {{ c.etapa }}</small></span>
-        <div class="pista"><div style="width: {{ c.ancho }}%; background: #C8382F"></div></div>
+        <div class="pista"><div style="width: {{ c.ancho|unlocalize }}%; background: #C8382F"></div></div>
         <span class="fila-v"><b>{{ c.n }}</b></span>
       </div>
       {% empty %}
@@ -91,8 +92,8 @@
       {% for x in compras %}
       <div class="fila fila-nc" title="{{ x.m.nombre }}: {{ x.stock|floatformat:'-2' }} de mínimo {{ x.minimo|floatformat:'-2' }} {{ x.m.unidad }}">
         <span class="fila-n">{{ x.m.nombre }}<small>{{ x.stock|floatformat:"-2" }} de {{ x.minimo|floatformat:"-2" }} {{ x.m.unidad }}</small></span>
-        <div class="pista" style="position: relative"><div style="width: {{ x.ancho|floatformat:'1' }}%; background: {% if x.bajo %}#D98200{% else %}#2E4A78{% endif %}"></div>
-          <span class="minimo" style="left: {{ x.linea|floatformat:'1' }}%"></span></div>
+        <div class="pista" style="position: relative"><div style="width: {{ x.ancho|stringformat:'.1f' }}%; background: {% if x.bajo %}#D98200{% else %}#2E4A78{% endif %}"></div>
+          {% if x.linea is not None %}<span class="minimo" style="left: {{ x.linea|stringformat:'.1f' }}%"></span>{% endif %}</div>
         <span class="fila-v">{% if x.bajo %}<span class="pill wa">Comprar</span>{% else %}<span class="pill ok">Bien</span>{% endif %}</span>
       </div>
       {% empty %}
